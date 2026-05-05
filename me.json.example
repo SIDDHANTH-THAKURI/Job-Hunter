@@ -1,0 +1,125 @@
+{
+  "personal": {
+    "name": "Your Full Name",
+    "email": "you@example.com",
+    "phone": "0400 000 000",
+    "location": "Sydney, NSW, Australia",
+    "linkedin": "linkedin.com/in/yourhandle",
+    "github": "github.com/yourusername",
+    "portfolio": "yourportfolio.com",
+    "leetcode": "leetcode.com/u/yourhandle",
+    "visa": {
+      "type": "Australian Citizen",
+      "work_rights": "Full work rights",
+      "expiry": null,
+      "sponsorship_required": false,
+      "note": "No sponsorship required."
+    }
+  },
+
+  "job_preferences": {
+    "salary_range": {
+      "min": 65000,
+      "max": 85000,
+      "currency": "AUD"
+    },
+    "work_type": ["full-time", "part-time", "contract"],
+    "work_environment": ["onsite", "hybrid", "remote"],
+    "remote": true,
+    "locations": ["Sydney, NSW"],
+    "has_car": true,
+    "driving_license": true
+  },
+
+  "target_roles": [
+    "Junior Developer",
+    "Graduate Software Engineer",
+    "IT Support Analyst"
+  ],
+
+  "summary": "A brief professional summary about yourself — 2-3 sentences. Mention your background, key skills, and what you are looking for.",
+
+  "skills": {
+    "Languages": "Python, JavaScript, TypeScript",
+    "Frameworks": "React, Node.js, Flask",
+    "Databases": "PostgreSQL, SQLite, MongoDB",
+    "Cloud & DevOps": "AWS, Docker, GitHub Actions",
+    "Tools": "Git, VS Code, Jira"
+  },
+
+  "work_experience": [
+    {
+      "title": "Software Developer",
+      "company": "Example Company",
+      "period": "Jan 2024 - Present",
+      "framing": "Full-time role focused on building internal tools and APIs.",
+      "bullet_count": 4,
+      "experience_category": "relevant"
+    },
+    {
+      "title": "Retail Assistant",
+      "company": "Some Retail Store",
+      "period": "Jan 2022 - Dec 2023",
+      "framing": "Customer-facing role developing communication and problem-solving skills.",
+      "bullet_count": 2,
+      "experience_category": "other"
+    }
+  ],
+
+  "education": [
+    {
+      "degree": "Master of Computer Science",
+      "institution": "University of Example",
+      "period": "Feb 2023 - Nov 2024",
+      "education_category": "main",
+      "resume_bullets": [
+        "GPA: 3.8/4.0",
+        "Relevant coursework: Algorithms, Machine Learning, Distributed Systems"
+      ]
+    },
+    {
+      "degree": "Bachelor of Information Technology",
+      "institution": "University of Example",
+      "period": "Feb 2019 - Nov 2022",
+      "education_category": "main",
+      "resume_bullets": [
+        "Major in Software Engineering"
+      ]
+    },
+    {
+      "degree": "AWS Certified Solutions Architect",
+      "institution": "Amazon Web Services",
+      "period": "2024",
+      "education_category": "additional",
+      "resume_bullets": []
+    }
+  ],
+
+  "projects": [
+    {
+      "type": "personal",
+      "name": "My SaaS App",
+      "display_name": "My SaaS App",
+      "period": "2024",
+      "description": "A web application that does X, Y, Z.",
+      "tech_stack": ["React", "Node.js", "PostgreSQL"],
+      "url": "https://mysaasapp.com",
+      "include_by_default": true,
+      "fixed_bullets": [
+        "Live at https://mysaasapp.com"
+      ]
+    },
+    {
+      "type": "academic",
+      "name": "Final Year Project",
+      "context": "Master of Computer Science — Capstone",
+      "period": "2024",
+      "description": "Built a machine learning model to predict X.",
+      "tech_stack": ["Python", "TensorFlow", "Flask"],
+      "include_by_default": true,
+      "fixed_bullets": []
+    }
+  ],
+
+  "affiliations": []
+}

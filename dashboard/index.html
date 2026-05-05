@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Hunter</title>
+<style>
+/* ── Variables ──────────────────────────────────────────────────────────── */
+:root {
+  --bg:         #f1f5f9;
+  --surface:    #ffffff;
+  --surface2:   #f8fafc;
+  --border:     #e2e8f0;
+  --border2:    #cbd5e1;
+
+  --accent:     #4f46e5;
+  --accent-h:   #4338ca;
+  --accent-bg:  #eef2ff;
+
+  --text:       #0f172a;
+  --text2:      #334155;
+  --muted:      #64748b;
+  --muted2:     #94a3b8;
+
+  --green:      #16a34a;  --green-bg:  #dcfce7;
+  --blue:       #1d4ed8;  --blue-bg:   #dbeafe;
+  --amber:      #b45309;  --amber-bg:  #fef3c7;
+  --red:        #b91c1c;  --red-bg:    #fee2e2;
+  --purple:     #6d28d9;  --purple-bg: #ede9fe;
+  --teal:       #0f766e;  --teal-bg:   #ccfbf1;
+
+  --shadow-sm:  0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+  --shadow:     0 4px 12px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.05);
+  --shadow-lg:  0 20px 40px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+  --radius:     10px;
+}
+
+/* ── Reset & base ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.header {
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  z-index: 50;
+}
+.header-left { display: flex; align-items: center; gap: 10px; }
+.logo { font-size: 18px; font-weight: 800; letter-spacing: -.5px; color: var(--text); }
+.logo em { color: var(--accent); font-style: normal; }
+.tagline { font-size: 12px; color: var(--muted); border-left: 1px solid var(--border); padding-left: 10px; }
+.header-right { display: flex; align-items: center; gap: 8px; }
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: 8px; border: none;
+  cursor: pointer; font-size: 13px; font-weight: 500;
+  transition: all .15s; white-space: nowrap; line-height: 1;
+}
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-h); }
+.btn-secondary { background: var(--surface); color: var(--text2); border: 1px solid var(--border); }
+.btn-secondary:hover:not(:disabled) { background: var(--surface2); border-color: var(--border2); }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid transparent; }
+.btn-ghost:hover:not(:disabled) { background: var(--surface2); color: var(--text); border-color: var(--border); }
+.btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid #fca5a5; }
+.btn-danger:hover:not(:disabled) { background: #fecaca; }
+.btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+.btn-xs { padding: 3px 7px; font-size: 11px; border-radius: 5px; }
+
+/* usage chip */
+.usage-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 20px;
+  background: var(--accent-bg); color: var(--accent);
+  border: 1px solid #c7d2fe; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .15s;
+}
+.usage-chip:hover { background: #e0e7ff; border-color: #a5b4fc; }
+
+/* ── Stats bar ───────────────────────────────────────────────────────────── */
+.stats-bar {
+  flex-shrink: 0;
+  display: flex; gap: 12px; padding: 14px 24px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 16px;
+  min-width: 110px; flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .15s;
+}
+.stat-card:hover { box-shadow: var(--shadow); }
+.stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; font-weight: 500; }
+.stat-value { font-size: 24px; font-weight: 700; line-height: 1; }
+.stat-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.stat-applied   .stat-value { color: var(--blue); }
+.stat-interview .stat-value { color: var(--purple); }
+.stat-offer     .stat-value { color: var(--green); }
+.stat-score     .stat-value { color: var(--amber); }
+
+/* ── Controls bar ────────────────────────────────────────────────────────── */
+.controls {
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 24px;
+  background: var(--surface2); border-bottom: 1px solid var(--border);
+}
+.search-wrap { position: relative; }
+.search-wrap input {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 12px 7px 32px;
+  color: var(--text); font-size: 13px; outline: none;
+  width: 220px; transition: border-color .15s;
+}
+.search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
+.search-wrap .s-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted2); font-size: 13px; pointer-events: none; }
+select.ctl-select {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 10px; color: var(--text);
+  font-size: 13px; outline: none; cursor: pointer; transition: border-color .15s;
+}
+select.ctl-select:focus { border-color: var(--accent); }
+.score-ctl { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.score-ctl input[type=range] { width: 80px; accent-color: var(--accent); cursor: pointer; }
+.score-ctl strong { min-width: 24px; color: var(--text); font-weight: 600; }
+.controls-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.job-count { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+/* ── Table area ──────────────────────────────────────────────────────────── */
+/* This fills the remaining viewport and scrolls independently */
+.table-outer {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  background: var(--bg);
+  padding: 16px 24px 40px;
+}
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  min-width: 900px;
+}
+table { width: 100%; border-collapse: collapse; }
+
+/* Sticky thead — relative to .table-outer scroll container */
+thead { position: sticky; top: -16px; z-index: 5; }
+th {
+  background: var(--surface2);
+  border-bottom: 2px solid var(--border);
+  padding: 10px 14px; text-align: left;
+  font-size: 11px; font-weight: 700;
+  color: var(--muted); text-transform: uppercase; letter-spacing: .5px;
+  white-space: nowrap; cursor: pointer; user-select: none;
+}
+th:hover { color: var(--text2); background: #eef2f8; }
+th.sorted { color: var(--accent); }
+th .sort-i { margin-left: 3px; opacity: .5; }
+th.sorted .sort-i { opacity: 1; }
+
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafbff; }
+
+/* Column widths */
+.c-title    { max-width: 230px; }
+.c-company  { max-width: 140px; }
+.c-location { max-width: 120px; }
+.c-salary   { white-space: nowrap; }
+.c-date     { white-space: nowrap; }
+.c-reason   { max-width: 200px; }
+.c-status   { min-width: 140px; }
+.c-actions  { white-space: nowrap; }
+
+/* Job title link */
+.job-link { color: var(--text); text-decoration: none; font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job-link:hover { color: var(--accent); text-decoration: underline; }
+
+/* Muted cell text */
+.cell-muted { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Score badge */
+.score-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 36px; height: 22px; padding: 0 6px;
+  border-radius: 20px; font-size: 12px; font-weight: 700;
+  border: 1px solid transparent;
+}
+.sc-none   { background: var(--surface2); color: var(--muted2);  border-color: var(--border); }
+.sc-high   { background: var(--green-bg); color: var(--green);   border-color: #86efac; }
+.sc-good   { background: var(--blue-bg);  color: var(--blue);    border-color: #93c5fd; }
+.sc-mid    { background: var(--amber-bg); color: var(--amber);   border-color: #fcd34d; }
+.sc-low    { background: var(--red-bg);   color: var(--red);     border-color: #fca5a5; }
+
+/* Status select */
+.status-sel {
+  border-radius: 6px; padding: 4px 8px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border); cursor: pointer; outline: none;
+  background: var(--surface2); color: var(--text2); transition: all .15s;
+  width: 135px;
+}
+.status-sel:focus { border-color: var(--accent); }
+.ss-applied     { background: var(--blue-bg);   color: var(--blue);   border-color: #93c5fd; }
+.ss-interviewing{ background: var(--purple-bg); color: var(--purple); border-color: #c4b5fd; }
+.ss-offer       { background: var(--green-bg);  color: var(--green);  border-color: #86efac; }
+.ss-rejected    { background: var(--red-bg);    color: var(--red);    border-color: #fca5a5; }
+
+/* Generated badge */
+.gen-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 600; color: var(--teal);
+  background: var(--teal-bg); border: 1px solid #99f6e4;
+  padding: 1px 5px; border-radius: 4px; margin-left: 4px;
+}
+
+/* Reason cell */
+.reason-cell { font-size: 12px; color: var(--muted); cursor: help; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Action row */
+.act-row { display: flex; gap: 4px; align-items: center; }
+
+/* Empty + loading states */
+.empty-state { padding: 80px 20px; text-align: center; color: var(--muted); }
+.empty-state .icon { font-size: 36px; margin-bottom: 12px; }
+.empty-state h3 { font-size: 17px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+.loading-cell { padding: 60px 20px; text-align: center; color: var(--muted); }
+
+/* ── Modals ──────────────────────────────────────────────────────────────── */
+.backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15,23,42,.45); backdrop-filter: blur(4px);
+  z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.backdrop.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; width: 100%; max-height: 92vh;
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(12px) scale(.98); transition: transform .2s;
+}
+.backdrop.open .modal { transform: translateY(0) scale(1); }
+.modal-head {
+  padding: 18px 22px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0;
+}
+.modal-title { font-weight: 700; font-size: 16px; }
+.modal-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.modal-x { background: none; border: none; color: var(--muted2); font-size: 18px; cursor: pointer; padding: 4px; border-radius: 6px; line-height: 1; }
+.modal-x:hover { background: var(--surface2); color: var(--text); }
+.modal-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
+.modal-foot { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
+
+/* Progress modal */
+#prog-modal .modal { max-width: 420px; }
+.spinner { width: 32px; height: 32px; border: 3px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 14px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.prog-msg { text-align: center; color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+/* Generate modal */
+#gen-modal .modal { max-width: 820px; }
+.tab-bar { display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 3px; margin-bottom: 14px; }
+.tab-btn { flex: 1; padding: 7px; border: none; background: transparent; color: var(--muted); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+.tab-btn.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.doc-preview {
+  background: #fafafa; border: 1px solid var(--border); border-radius: 8px;
+  padding: 20px 22px; font-family: "Courier New", Courier, monospace;
+  font-size: 11.5px; line-height: 1.75; white-space: pre-wrap; word-break: break-word;
+  color: var(--text2); max-height: 52vh; overflow-y: auto;
+}
+.gen-loading { text-align: center; padding: 70px 20px; }
+
+/* Usage modal */
+#usage-modal .modal { max-width: 640px; }
+.usage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.usage-card {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; background: var(--surface2);
+}
+.usage-card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 8px; }
+.usage-card-value { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+.usage-card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.usage-card.today .usage-card-value { color: var(--accent); }
+.usage-card.alltime .usage-card-value { color: var(--green); }
+.usage-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+.usage-table th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); padding: 6px 10px; border-bottom: 2px solid var(--border); }
+.usage-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.usage-table tr:last-child td { border-bottom: none; }
+.op-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.op-score    { background: var(--blue-bg);  color: var(--blue); }
+.op-generate { background: var(--purple-bg); color: var(--purple); }
+.budget-section { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.budget-title { font-size: 12px; font-weight: 700; color: var(--text2); margin-bottom: 10px; }
+.budget-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.budget-row label { font-size: 12px; color: var(--muted); }
+.budget-input { width: 80px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; outline: none; }
+.budget-input:focus { border-color: var(--accent); }
+.progress-bar-wrap { background: var(--border); border-radius: 20px; height: 8px; overflow: hidden; margin-bottom: 4px; }
+.progress-bar-fill { height: 100%; border-radius: 20px; transition: width .4s, background .3s; }
+.progress-label { font-size: 11px; color: var(--muted); }
+.note-text { font-size: 11px; color: var(--muted2); font-style: italic; margin-top: 12px; }
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+#toasts { position: fixed; bottom: 22px; right: 22px; display: flex; flex-direction: column; gap: 8px; z-index: 500; pointer-events: none; }
+.toast {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 11px 15px; font-size: 13px; display: flex; align-items: center; gap: 8px;
+  box-shadow: var(--shadow); min-width: 210px; animation: tIn .2s ease;
+}
+@keyframes tIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+.toast.success { border-left: 3px solid var(--green); }
+.toast.error   { border-left: 3px solid var(--red); }
+.toast.info    { border-left: 3px solid var(--blue); }
+
+@media (max-width: 900px) { .c-location, .c-salary, .c-date { display: none; } }
+</style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="header-left">
+    <span class="logo">Job<em>Hunter</em></span>
+    <span class="tagline" id="profile-tagline">Loading…</span>
+  </div>
+  <div class="header-right">
+    <button class="usage-chip" onclick="openUsageModal()" title="View API usage &amp; estimated costs">
+      💰 Today: <span id="chip-cost">$0.00</span>
+    </button>
+    <button class="btn btn-secondary btn-sm" id="btn-score-all" onclick="startScoreAll()">⭐ Score All</button>
+    <button class="btn btn-primary" id="btn-crawl" onclick="startCrawl()">🔍 Crawl Jobs</button>
+  </div>
+</header>
+
+<!-- ── Stats bar ───────────────────────────────────────────────────────────── -->
+<div class="stats-bar">
+  <div class="stat-card">
+    <div class="stat-label">Total Jobs</div>
+    <div class="stat-value" id="s-total">—</div>
+  </div>
+  <div class="stat-card stat-score">
+    <div class="stat-label">Scored</div>
+    <div class="stat-value" id="s-scored">—</div>
+    <div class="stat-sub" id="s-avg"></div>
+  </div>
+  <div class="stat-card stat-applied">
+    <div class="stat-label">Applied</div>
+    <div class="stat-value" id="s-applied">—</div>
+  </div>
+  <div class="stat-card stat-interview">
+    <div class="stat-label">Interviewing</div>
+    <div class="stat-value" id="s-interview">—</div>
+  </div>
+  <div class="stat-card stat-offer">
+    <div class="stat-label">Offers</div>
+    <div class="stat-value" id="s-offer">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Generated</div>
+    <div class="stat-value" id="s-gen">—</div>
+  </div>
+</div>
+
+<!-- ── Controls bar ────────────────────────────────────────────────────────── -->
+<div class="controls">
+  <div class="search-wrap">
+    <span class="s-icon">🔎</span>
+    <input type="text" id="search" placeholder="Search title, company…" oninput="applyFilters()">
+  </div>
+  <select class="ctl-select" id="status-filter" onchange="applyFilters()">
+    <option value="">All statuses</option>
+    <option>Not Applied</option>
+    <option>Applied</option>
+    <option>Interviewing</option>
+    <option>Offer</option>
+    <option>Rejected</option>
+  </select>
+  <div class="score-ctl">
+    <span>Min score</span>
+    <input type="range" id="min-score" min="0" max="10" value="0" step="1" oninput="onSlider(this)">
+    <strong id="min-score-val">0</strong>
+  </div>
+  <div class="controls-right">
+    <span class="job-count" id="job-count"></span>
+    <button class="btn btn-ghost btn-sm" onclick="loadAll()" title="Refresh">↺ Refresh</button>
+  </div>
+</div>
+
+<!-- ── Table area ─────────────────────────────────────────────────────────── -->
+<div class="table-outer">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="c-title"    onclick="sortBy('title')">Title <i class="sort-i" id="si-title">⇅</i></th>
+          <th class="c-company"  onclick="sortBy('company')">Company <i class="sort-i" id="si-company">⇅</i></th>
+          <th class="c-location" onclick="sortBy('location')">Location <i class="sort-i" id="si-location">⇅</i></th>
+          <th class="c-salary">Salary</th>
+          <th class="c-date"     onclick="sortBy('date_posted')">Posted <i class="sort-i" id="si-date_posted">⇅</i></th>
+          <th onclick="sortBy('score')" class="sorted">Score <i class="sort-i" id="si-score">↓</i></th>
+          <th class="c-reason">Reason</th>
+          <th class="c-status"   onclick="sortBy('status')">Status <i class="sort-i" id="si-status">⇅</i></th>
+          <th class="c-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Progress Modal ─────────────────────────────────────────────────────── -->
+<div class="backdrop" id="prog-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="prog-title">Working…</div>
+        <div class="modal-sub" id="prog-sub"></div>
+      </div>
+    </div>
+    <div class="modal-body" style="text-align:center;padding:48px 20px">
+      <div class="spinner"></div>
+      <div class="prog-msg" id="prog-msg">Starting…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Generate Modal ─────────────────────────────────────────────────────── -->
+<div class="backdrop" id="gen-modal" onclick="onBackdropClick(event,'gen-modal')">
+  <div class="modal" style="max-width:820px">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="gen-title">Generated Documents</div>
+        <div class="modal-sub"   id="gen-sub"></div>
+      </div>
+      <button class="modal-x" onclick="closeModal('gen-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="gen-loading" id="gen-loading">
+        <div class="spinner"></div>
+        <div class="prog-msg">Claude is tailoring your documents…<br><span style="font-size:11px;opacity:.6">~20 seconds</span></div>
+      </div>
+      <div id="gen-content" style="display:none">
+        <div class="tab-bar">
+          <button class="tab-btn active" id="tab-resume" onclick="switchTab('resume')">📄 Resume</button>
+          <button class="tab-btn"        id="tab-cover"  onclick="switchTab('cover')">✉️ Cover Letter</button>
+        </div>
+        <pre class="doc-preview" id="doc-resume"></pre>
+        <pre class="doc-preview" id="doc-cover"  style="display:none"></pre>
+      </div>
+    </div>
+    <div class="modal-foot" id="gen-foot" style="display:none">
+      <span style="flex:1;font-size:11.5px;color:var(--muted)">Downloads save formatted Word/PDF files.</span>
+      <button class="btn btn-secondary btn-sm" onclick="dlFile('resume_docx')">⬇ Resume .docx</button>
+      <button class="btn btn-secondary btn-sm" onclick="dlFile('resume_pdf')">⬇ Resume .pdf</button>
+      <button class="btn btn-secondary btn-sm" onclick="dlFile('cover_docx')">⬇ Cover .docx</button>
+      <button class="btn btn-secondary btn-sm" onclick="dlFile('cover_pdf')">⬇ Cover .pdf</button>
+      <button class="btn btn-ghost btn-sm" onclick="regenDocs()">↺ Regenerate</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Usage Modal ────────────────────────────────────────────────────────── -->
+<div class="backdrop" id="usage-modal" onclick="onBackdropClick(event,'usage-modal')">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">💰 API Usage &amp; Cost Tracker</div>
+        <div class="modal-sub">Anthropic Claude API · Haiku (scoring) &amp; Sonnet (generation)</div>
+      </div>
+      <button class="modal-x" onclick="closeModal('usage-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="usage-grid">
+        <div class="usage-card today">
+          <div class="usage-card-title">Today</div>
+          <div class="usage-card-value" id="u-today-cost">$0.00</div>
+          <div class="usage-card-sub" id="u-today-calls">0 calls</div>
+          <div class="usage-card-sub" id="u-today-tokens">0 tokens</div>
+        </div>
+        <div class="usage-card alltime">
+          <div class="usage-card-title">All Time</div>
+          <div class="usage-card-value" id="u-total-cost">$0.00</div>
+          <div class="usage-card-sub" id="u-total-calls">0 calls</div>
+          <div class="usage-card-sub" id="u-total-tokens">0 tokens</div>
+        </div>
+      </div>
+
+      <table class="usage-table" id="usage-ops-table">
+        <thead>
+          <tr>
+            <th>Operation</th>
+            <th>Calls</th>
+            <th>Input tokens</th>
+            <th>Output tokens</th>
+            <th>Est. cost</th>
+          </tr>
+        </thead>
+        <tbody id="usage-ops-body">
+          <tr><td colspan="5" style="text-align:center;color:var(--muted2);padding:20px">No API calls recorded yet.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="budget-section">
+        <div class="budget-title">Monthly Budget Tracker</div>
+        <div class="budget-row">
+          <label for="budget-input">Budget (USD $)</label>
+          <input class="budget-input" type="number" id="budget-input" min="0" step="1" placeholder="e.g. 10" oninput="updateBudget()">
+          <span style="font-size:12px;color:var(--muted)">per month</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="budget-fill" style="width:0%;background:var(--green)"></div>
+        </div>
+        <div class="progress-label" id="budget-label">Set a budget above to track usage.</div>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
+      <div class="budget-title" style="margin-bottom:12px">Apify Account Usage</div>
+      <div id="apify-usage-body" style="color:var(--muted);font-size:13px">Loading…</div>
+
+      <p class="note-text" id="usage-note"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast container ───────────────────────────────────────────────────── -->
+<div id="toasts"></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let allJobs = [], filtered = [];
+let sortCol = 'score', sortDir = -1;
+let activeJobId = null;
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadAll();
+  loadUsageSummary();
+  loadProfileTagline();
+  const saved = localStorage.getItem('jh_budget');
+  if (saved) document.getElementById('budget-input').value = saved;
+});
+
+async function loadProfileTagline() {
+  try {
+    const r = await fetch('/api/profile-meta');
+    const d = await r.json();
+    if (!d.name) return;
+    const sal = d.salary_max ? `${d.currency} ${Math.round(d.salary_min/1000)}–${Math.round(d.salary_max/1000)}K` : '';
+    const visa = d.visa_type ? `${d.visa_type} Visa` : '';
+    const parts = [d.location, visa, sal].filter(Boolean);
+    document.getElementById('profile-tagline').textContent = parts.join(' · ');
+  } catch {}
+}
+
+async function loadAll() {
+  await Promise.all([loadJobs(), loadStats()]);
+}
+
+// ── Jobs ─────────────────────────────────────────────────────────────────────
+async function loadJobs() {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '<tr><td colspan="9" class="loading-cell">Loading jobs…</td></tr>';
+  try {
+    const r = await fetch('/api/jobs');
+    allJobs = await r.json();
+    applyFilters();
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="9" class="loading-cell">Failed to load. Is the server running?</td></tr>';
+  }
+}
+
+async function loadStats() {
+  try {
+    const r = await fetch('/api/stats');
+    const s = await r.json();
+    document.getElementById('s-total').textContent    = s.total;
+    document.getElementById('s-scored').textContent   = s.scored;
+    document.getElementById('s-avg').textContent      = s.avg_score ? `avg ${s.avg_score}` : '';
+    document.getElementById('s-applied').textContent  = s.by_status['Applied'] || 0;
+    document.getElementById('s-interview').textContent= s.by_status['Interviewing'] || 0;
+    document.getElementById('s-offer').textContent    = s.by_status['Offer'] || 0;
+    document.getElementById('s-gen').textContent      = s.generated || 0;
+  } catch {}
+}
+
+async function loadUsageSummary() {
+  try {
+    const r = await fetch('/api/usage');
+    const u = await r.json();
+    document.getElementById('chip-cost').textContent = `$${u.today.cost_usd.toFixed(2)}`;
+  } catch {}
+}
+
+// ── Filter + sort ─────────────────────────────────────────────────────────────
+function onSlider(el) {
+  document.getElementById('min-score-val').textContent = el.value;
+  applyFilters();
+}
+
+function applyFilters() {
+  const q    = document.getElementById('search').value.toLowerCase();
+  const st   = document.getElementById('status-filter').value;
+  const minS = parseInt(document.getElementById('min-score').value, 10);
+
+  filtered = allJobs.filter(j => {
+    if (st && (j.status || 'Not Applied') !== st) return false;
+    if (minS > 0 && (j.score == null || j.score < minS)) return false;
+    if (q) {
+      const hay = `${j.title||''} ${j.company||''} ${j.location||''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  doSort();
+  render();
+}
+
+function sortBy(col) {
+  sortDir = sortCol === col ? -sortDir : (col === 'score' ? -1 : 1);
+  sortCol = col;
+  document.querySelectorAll('.sort-i').forEach(el => { el.textContent = '⇅'; });
+  document.querySelectorAll('th').forEach(el => el.classList.remove('sorted'));
+  const icon = document.getElementById(`si-${col}`);
+  if (icon) { icon.textContent = sortDir === -1 ? '↓' : '↑'; icon.closest('th').classList.add('sorted'); }
+  doSort(); render();
+}
+
+function doSort() {
+  filtered.sort((a, b) => {
+    let va = a[sortCol], vb = b[sortCol];
+    if (va == null) va = sortCol === 'score' ? -1 : '';
+    if (vb == null) vb = sortCol === 'score' ? -1 : '';
+    if (typeof va === 'number') return (va - vb) * sortDir;
+    return String(va).localeCompare(String(vb)) * sortDir;
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const tbody = document.getElementById('tbody');
+  document.getElementById('job-count').textContent = `${filtered.length} job${filtered.length !== 1 ? 's' : ''}`;
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">🔍</div><h3>No jobs found</h3><p>Try adjusting your filters or crawl for new listings.</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(rowHtml).join('');
+}
+
+function scorePillClass(s) {
+  if (s == null) return 'sc-none';
+  if (s >= 9)  return 'sc-high';
+  if (s >= 7)  return 'sc-good';
+  if (s >= 5)  return 'sc-mid';
+  return 'sc-low';
+}
+
+function statusSelClass(st) {
+  const m = { Applied:'ss-applied', Interviewing:'ss-interviewing', Offer:'ss-offer', Rejected:'ss-rejected' };
+  return m[st] || '';
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleDateString('en-AU', {day:'numeric',month:'short'}); }
+  catch { return (d||'').slice(0,10); }
+}
+
+function tr(s, n) {
+  if (!s) return '—';
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+function rowHtml(j) {
+  const score = j.score != null ? j.score : null;
+  const visaFlag = (j.visa_ok === 0 || j.visa_ok === false)
+    ? `<span title="Visa/citizenship concern" style="margin-left:4px;font-size:11px;color:var(--red);font-weight:700">VISA?</span>` : '';
+  const badge = score != null
+    ? `<span class="score-pill ${scorePillClass(score)}">${score}</span>${visaFlag}`
+    : `<span class="score-pill sc-none">—</span>`;
+
+  const st = j.status || 'Not Applied';
+  const opts = ['Not Applied','Applied','Interviewing','Offer','Rejected']
+    .map(s => `<option${s===st?' selected':''}>${s}</option>`).join('');
+
+  const hasGen = !!(j.resume_text && j.resume_text.length > 10);
+  const genBadge = hasGen ? `<span class="gen-badge">✓ docs</span>` : '';
+
+  const id = j.job_id;
+  return `<tr data-id="${id}">
+    <td class="c-title">
+      <a class="job-link" href="${j.job_url||'#'}" target="_blank" title="${esc(j.title||'')}">${tr(j.title,38)}</a>${genBadge}
+    </td>
+    <td class="c-company cell-muted" title="${esc(j.company||'')}">${tr(j.company,22)}</td>
+    <td class="c-location cell-muted" title="${esc(j.location||'')}">${tr(j.location,20)}</td>
+    <td class="c-salary cell-muted">${tr(j.salary,18)}</td>
+    <td class="c-date cell-muted">${fmtDate(j.date_posted)}</td>
+    <td>${badge}</td>
+    <td class="c-reason reason-cell" title="${esc(j.score_reason||'')}">${tr(j.score_reason,50)}</td>
+    <td class="c-status">
+      <select class="status-sel ${statusSelClass(st)}" onchange="updateStatus('${id}',this.value,this)">${opts}</select>
+    </td>
+    <td class="c-actions">
+      <div class="act-row">
+        ${score==null ? `<button class="btn btn-ghost btn-xs" onclick="scoreOne('${id}')" title="Score this job">⭐</button>` : ''}
+        <button class="btn btn-ghost btn-xs" onclick="openGenModal('${id}',${hasGen})" title="Generate resume &amp; cover letter">📝</button>
+        <button class="btn btn-danger btn-xs" onclick="discard('${id}')" title="Discard">✕</button>
+      </div>
+    </td>
+  </tr>`;
+}
+
+function esc(s) { return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// ── Status update ──────────────────────────────────────────────────────────────
+async function updateStatus(id, st, sel) {
+  sel.className = `status-sel ${statusSelClass(st)}`;
+  const j = allJobs.find(x => x.job_id === id);
+  if (j) j.status = st;
+  try {
+    await fetch(`/api/jobs/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:st}) });
+    loadStats();
+  } catch { toast('Failed to update status','error'); }
+}
+
+// ── Score single ───────────────────────────────────────────────────────────────
+async function scoreOne(id) {
+  const row = document.querySelector(`[data-id="${id}"]`);
+  const btn = row?.querySelector('.btn-ghost');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const r = await fetch(`/api/score/${id}`, {method:'POST'});
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    const j = allJobs.find(x => x.job_id === id);
+    if (j) { j.score = d.score; j.score_reason = d.reason; j.scored = 1; }
+    applyFilters(); loadStats(); loadUsageSummary();
+    toast(`Scored: ${d.score}/100`, 'success');
+  } catch (e) {
+    toast('Scoring failed: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '⭐'; }
+  }
+}
+
+// ── Discard ────────────────────────────────────────────────────────────────────
+async function discard(id) {
+  if (!confirm('Discard this job? It will be hidden from the dashboard.')) return;
+  try {
+    await fetch(`/api/jobs/${id}`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({discarded:1})});
+    allJobs = allJobs.filter(j => j.job_id !== id);
+    applyFilters(); loadStats();
+    toast('Job discarded', 'info');
+  } catch { toast('Failed to discard','error'); }
+}
+
+// ── Generate ───────────────────────────────────────────────────────────────────
+async function openGenModal(id, hasCached) {
+  activeJobId = id;
+  const j = allJobs.find(x => x.job_id === id);
+  document.getElementById('gen-title').textContent = 'Generated Documents';
+  document.getElementById('gen-sub').textContent   = j ? `${j.title||''} @ ${j.company||''}` : '';
+  document.getElementById('gen-loading').style.display  = hasCached ? 'none' : 'block';
+  document.getElementById('gen-content').style.display  = hasCached ? 'block' : 'none';
+  document.getElementById('gen-foot').style.display     = hasCached ? 'flex' : 'none';
+  if (hasCached && j) {
+    document.getElementById('doc-resume').textContent = j.resume_text || '';
+    document.getElementById('doc-cover').textContent  = j.cover_letter_text || '';
+    switchTab('resume');
+  }
+  openModal('gen-modal');
+  if (!hasCached) await generateDocs(id, false);
+}
+
+async function generateDocs(id, force) {
+  try {
+    const r = await fetch(`/api/generate/${id}${force?'?force=true':''}`, {method:'POST'});
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    const j = allJobs.find(x => x.job_id === id);
+    if (j) { j.resume_text = d.resume_text; j.cover_letter_text = d.cover_letter_text; }
+    document.getElementById('doc-resume').textContent = d.resume_text || '';
+    document.getElementById('doc-cover').textContent  = d.cover_letter_text || '';
+    switchTab('resume');
+    document.getElementById('gen-loading').style.display = 'none';
+    document.getElementById('gen-content').style.display = 'block';
+    document.getElementById('gen-foot').style.display    = 'flex';
+    if (d.pdf_warnings && d.pdf_warnings.length)
+      toast('DOCX saved — PDF conversion failed (close any open PDF files and retry): ' + d.pdf_warnings.join('; '), 'error');
+    // Update row badge
+    const titleCell = document.querySelector(`[data-id="${id}"] .c-title`);
+    if (titleCell && !titleCell.querySelector('.gen-badge'))
+      titleCell.insertAdjacentHTML('beforeend','<span class="gen-badge">✓ docs</span>');
+    loadStats(); loadUsageSummary();
+  } catch (e) {
+    // Show error inside modal instead of closing it
+    document.getElementById('gen-loading').style.display = 'none';
+    document.getElementById('gen-content').style.display = 'block';
+    document.getElementById('gen-foot').style.display    = 'flex';
+    document.getElementById('doc-resume').textContent = '❌ Generation failed:\n\n' + e.message;
+    switchTab('resume');
+  }
+}
+
+async function regenDocs() {
+  if (!activeJobId) return;
+  document.getElementById('gen-loading').style.display = 'block';
+  document.getElementById('gen-content').style.display = 'none';
+  document.getElementById('gen-foot').style.display    = 'none';
+  await generateDocs(activeJobId, true);
+}
+
+function dlFile(type) {
+  if (activeJobId) window.open(`/api/download/${activeJobId}/${type}`, '_blank');
+}
+
+function switchTab(t) {
+  document.getElementById('tab-resume').classList.toggle('active', t==='resume');
+  document.getElementById('tab-cover').classList.toggle('active', t==='cover');
+  document.getElementById('doc-resume').style.display = t==='resume' ? 'block' : 'none';
+  document.getElementById('doc-cover').style.display  = t==='cover'  ? 'block' : 'none';
+}
+
+// ── Crawl ──────────────────────────────────────────────────────────────────────
+async function startCrawl() {
+  try {
+    const r = await fetch('/api/crawl', {method:'POST'});
+    const d = await r.json();
+    if (d.error) { toast(d.error,'error'); return; }
+    showProgress('Crawling Seek…', 'Fetching jobs for 13 search terms — ~5–8 minutes', 'crawl', () => {
+      loadAll(); toast('Crawl complete!','success');
+    });
+  } catch { toast('Failed to start crawler','error'); }
+}
+
+// ── Score All ──────────────────────────────────────────────────────────────────
+async function startScoreAll() {
+  try {
+    const r = await fetch('/api/score', {method:'POST'});
+    const d = await r.json();
+    if (d.error) { toast(d.error,'error'); return; }
+    showProgress('Scoring all jobs…', 'Claude Haiku is evaluating each job against your profile', 'score', (res) => {
+      loadAll(); loadUsageSummary();
+      toast(res ? `Scored ${res.scored}/${res.total} jobs` : 'Scoring complete', 'success');
+    });
+  } catch { toast('Failed to start scorer','error'); }
+}
+
+// ── Progress polling ───────────────────────────────────────────────────────────
+let _pollTimer = null;
+
+function showProgress(title, sub, taskId, onDone) {
+  document.getElementById('prog-title').textContent = title;
+  document.getElementById('prog-sub').textContent   = sub;
+  document.getElementById('prog-msg').textContent   = 'Starting…';
+  openModal('prog-modal');
+  clearInterval(_pollTimer);
+  _pollTimer = setInterval(async () => {
+    try {
+      const r = await fetch(`/api/task/${taskId}`);
+      const t = await r.json();
+      document.getElementById('prog-msg').textContent = t.status;
+      if (!t.running) { clearInterval(_pollTimer); closeModal('prog-modal'); onDone(t.result); }
+    } catch {}
+  }, 2500);
+}
+
+// ── Usage modal ────────────────────────────────────────────────────────────────
+let _usageData = null;
+
+async function openUsageModal() {
+  openModal('usage-modal');
+  try {
+    const r = await fetch('/api/usage');
+    _usageData = await r.json();
+    renderUsage(_usageData);
+  } catch { toast('Failed to load usage data','error'); }
+  loadApifyUsage();
+}
+
+async function loadApifyUsage() {
+  const el = document.getElementById('apify-usage-body');
+  try {
+    const r = await fetch('/api/apify-usage');
+    const d = await r.json();
+    if (d.error) { el.innerHTML = `<span style="color:var(--red)">${esc(d.error)}</span>`; return; }
+    const used  = parseFloat(d.credits_used  || 0);
+    const total = parseFloat(d.credits_total || 0);
+    const pct   = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+    const barColor = pct >= 80 ? 'var(--red)' : pct >= 50 ? 'var(--amber)' : 'var(--green)';
+    const cycleText = (d.cycle_start && d.cycle_end)
+      ? `Cycle: ${d.cycle_start.slice(0,10)} → ${d.cycle_end.slice(0,10)}`
+      : '';
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-weight:600">${esc(d.plan_name)}</span>
+        <span style="color:var(--muted);font-size:12px">${cycleText}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px;color:var(--muted2)">
+        <span>Credits used: <strong style="color:var(--text)">$${used.toFixed(4)}</strong></span>
+        <span>Total: <strong style="color:var(--text)">$${total.toFixed(2)}</strong></span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" style="width:${pct.toFixed(1)}%;background:${barColor}"></div>
+      </div>
+      <div class="progress-label">${pct.toFixed(1)}% of monthly Apify credits used</div>`;
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--muted2)">Could not load Apify usage.</span>`;
+  }
+}
+
+function fmtTokens(n) {
+  if (n >= 1_000_000) return `${(n/1_000_000).toFixed(2)}M`;
+  if (n >= 1_000)     return `${(n/1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function renderUsage(u) {
+  document.getElementById('u-today-cost').textContent  = `$${u.today.cost_usd.toFixed(4)}`;
+  document.getElementById('u-today-calls').textContent = `${u.today.calls} call${u.today.calls!==1?'s':''}`;
+  document.getElementById('u-today-tokens').textContent= `${fmtTokens(u.today.input_tokens + u.today.output_tokens)} tokens`;
+
+  document.getElementById('u-total-cost').textContent  = `$${u.total.cost_usd.toFixed(4)}`;
+  document.getElementById('u-total-calls').textContent = `${u.total.calls} call${u.total.calls!==1?'s':''}`;
+  document.getElementById('u-total-tokens').textContent= `${fmtTokens(u.total.input_tokens + u.total.output_tokens)} tokens`;
+
+  const opBadge = { score: 'op-score', generate: 'op-generate' };
+  const opLabel = { score: '⭐ Scoring (Haiku)', generate: '📝 Generation (Sonnet)' };
+  const tbody = document.getElementById('usage-ops-body');
+  if (!u.by_op.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted2);padding:20px">No API calls recorded yet.</td></tr>';
+  } else {
+    tbody.innerHTML = u.by_op.map(op => `
+      <tr>
+        <td><span class="op-badge ${opBadge[op.operation]||''}">${opLabel[op.operation]||op.operation}</span></td>
+        <td>${op.calls}</td>
+        <td>${fmtTokens(op.input_tokens)}</td>
+        <td>${fmtTokens(op.output_tokens)}</td>
+        <td><strong>$${op.cost_usd.toFixed(4)}</strong></td>
+      </tr>`).join('');
+  }
+
+  document.getElementById('usage-note').textContent = u.note || '';
+  updateBudget();
+}
+
+function updateBudget() {
+  const input = document.getElementById('budget-input');
+  const budget = parseFloat(input.value);
+  localStorage.setItem('jh_budget', input.value);
+  const fill  = document.getElementById('budget-fill');
+  const label = document.getElementById('budget-label');
+
+  if (!budget || budget <= 0 || !_usageData) {
+    fill.style.width = '0%'; fill.style.background = 'var(--green)';
+    label.textContent = 'Set a budget above to track usage.';
+    return;
+  }
+
+  const spent = _usageData.total.cost_usd;
+  const pct   = Math.min(100, (spent / budget) * 100);
+  fill.style.width = `${pct}%`;
+  fill.style.background = pct >= 80 ? 'var(--red)' : pct >= 50 ? 'var(--amber)' : 'var(--green)';
+  label.textContent = `$${spent.toFixed(4)} spent of $${budget.toFixed(2)} budget (${pct.toFixed(1)}%)`;
+}
+
+// ── Modal helpers ──────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function onBackdropClick(e, id) { if (e.target === e.currentTarget) closeModal(id); }
+
+// ── Toast ──────────────────────────────────────────────────────────────────────
+function toast(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icon = {success:'✓', error:'✕', info:'ℹ'}[type]||'ℹ';
+  el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+# Secrets & personal data
+.env
+me.json
+
+# Claude Code local settings (may contain API keys in allow-rules)
+.claude/
+
+# Generated data (large / personal)
+data/jobs.db
+output/*.docx
+output/*.pdf
+# Generated DOCX templates (recreated by create_templates.py)
+templates/*.docx
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
