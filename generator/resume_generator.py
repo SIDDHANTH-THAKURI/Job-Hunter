@@ -24,7 +24,7 @@ def _db():
 
 
 def _profile():
-    with open(ME_PATH) as f:
+    with open(ME_PATH, encoding="utf-8-sig") as f:
         return json.load(f)
 
 
