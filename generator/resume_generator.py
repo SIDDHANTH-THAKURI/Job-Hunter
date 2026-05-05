@@ -214,6 +214,25 @@ def _build_prompt(profile: dict, job: dict) -> str:
     ]
     proj_ref = highlight_projects[0] if highlight_projects else "a personal project"
 
+    # ── Dynamic employer / education references for prompt instructions ──
+    top_employer = next(
+        (e["company"] for e in p.get("work_experience", [])
+         if e.get("show_on_resume") and e.get("experience_category", "relevant") == "relevant"),
+        None,
+    )
+    top_edu = next(
+        (e["degree"] for e in p.get("education", [])
+         if e.get("education_category", "main") == "main"),
+        None,
+    )
+    # Build a short "value proposition" hint for the prompt based on what's in the profile
+    vp_parts = []
+    if top_employer:
+        vp_parts.append(f"{top_employer} experience")
+    if top_edu:
+        vp_parts.append(top_edu)
+    value_prop_hint = " and ".join(vp_parts) if vp_parts else "relevant experience and qualifications"
+
     description = (job.get("description") or "")[:3000]
     title = job.get("title") or "the role"
     company = job.get("company") or "the company"
@@ -246,7 +265,7 @@ Return ONLY valid JSON (absolutely no markdown fences, no text outside the JSON)
 {{
   "resume": {{
     "title_subtitle": "ROLE TITLE, SPECIALISATION (match the job title, e.g. JUNIOR DEVELOPER, ARTIFICIAL INTELLIGENCE)",
-    "career_objective": "3-4 sentences. Mention Accenture + years, Masters degree + grade, top 2-3 skills most relevant to this job. Final sentence: genuine motivation for this specific company domain or mission.",
+    "career_objective": "3-4 sentences. Highlight {value_prop_hint} and top 2-3 skills most relevant to this job. Final sentence: genuine motivation for this specific company domain or mission.",
     "skills": {{
       "Languages": "most relevant first, comma-separated",
       "Frameworks & Libraries": "most relevant first, comma-separated",
@@ -280,7 +299,7 @@ Return ONLY valid JSON (absolutely no markdown fences, no text outside the JSON)
   "cover_letter": {{
     "subject": "Application for {title} at {company}",
     "paragraphs": [
-      "Opening (3-4 sentences): Genuine enthusiasm. Name the role and company. One-line value proposition referencing Accenture experience and Masters degree.",
+      "Opening (3-4 sentences): Genuine enthusiasm. Name the role and company. One-line value proposition referencing {value_prop_hint}.",
       "Body 1 (3-4 sentences): 2-3 specific, evidenced skills or achievements from the profile that directly match the job requirements. Be concrete.",
       "Body 2 (2-3 sentences): Reference {proj_ref} or a personal project as proof of real-world delivery. Connect it to the target role.",
       "Closing (2 sentences): Reiterate strong interest. Call to action and thank you."

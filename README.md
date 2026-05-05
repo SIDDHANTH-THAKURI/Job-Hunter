@@ -1,6 +1,6 @@
 # Job Hunter
 
-An automated job-hunting system that crawls Seek, scores every listing against your profile using AI, and generates a fully tailored resume + cover letter for each role — all from a local dashboard.
+An automated job-hunting system that crawls Seek, scores every listing against your profile using AI, and generates a fully tailored resume and cover letter for each role — all from a local dashboard.
 
 ---
 
@@ -8,8 +8,8 @@ An automated job-hunting system that crawls Seek, scores every listing against y
 
 | Step | What happens |
 |------|-------------|
-| **Crawl** | Fetches live job listings from Seek via Apify across 13 configurable search terms |
-| **Score** | Claude AI reads your profile (`me.json`) and gives each job a 1-10 relevance score with a reason and missing skills |
+| **Crawl** | Fetches live Seek listings for every role in your `target_roles` list (from `me.json`) |
+| **Score** | Claude AI reads your profile and gives each job a 1-10 relevance score with a reason and missing skills |
 | **Generate** | For any job you click, Claude writes a tailored resume and cover letter, fills a Word template, and exports PDF |
 | **Dashboard** | Browse, filter, sort, and manage all jobs in a local web UI at `http://localhost:5000` |
 
@@ -22,7 +22,7 @@ An automated job-hunting system that crawls Seek, scores every listing against y
 - **[Apify](https://apify.com) account** — free tier available (used to scrape Seek)
 - **[Anthropic](https://console.anthropic.com) account** — pay-as-you-go (Claude Sonnet for generation, Haiku for scoring)
 
-> Estimated cost per 100 jobs scored + 5 resumes generated: ~$0.15–0.30 USD
+> Estimated cost per 100 jobs scored + 5 resumes generated: ~$0.15-0.30 USD
 
 ---
 
@@ -37,7 +37,7 @@ An automated job-hunting system that crawls Seek, scores every listing against y
 1. Sign up at [apify.com](https://apify.com)
 2. Go to **Settings > Integrations > API tokens**
 3. Copy your Personal API token — it starts with `apify_api_...`
-4. The scraper used is `websift/seek-job-scraper` — no extra setup needed, it is called automatically
+4. The scraper used is `websift/seek-job-scraper` — no extra setup needed, it runs automatically
 
 ---
 
@@ -45,8 +45,8 @@ An automated job-hunting system that crawls Seek, scores every listing against y
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/job-hunter.git
-cd job-hunter
+git clone https://github.com/SIDDHANTH-THAKURI/Job-Hunter.git
+cd Job-Hunter
 
 # 2. Install Python dependencies
 pip install -r requirements.txt
@@ -77,14 +77,22 @@ Key sections to fill in:
 | Section | What to put |
 |---------|-------------|
 | `personal` | Name, email, phone, location, LinkedIn, GitHub, portfolio, visa status |
-| `job_preferences` | Salary range, work type, locations |
-| `target_roles` | List of job titles you are targeting |
+| `job_preferences` | Salary range, work type, locations (city, state) |
+| `target_roles` | List of job titles to search Seek for — the crawler uses this list directly |
 | `skills` | Your tech stack, tools, and honest skill assessment |
 | `work_experience` | Each role with `title`, `company`, `period`, `framing`, `bullet_count`, `experience_category` (`"relevant"` or `"other"`) |
 | `education` | Each qualification with `education_category` (`"main"` or `"additional"`) and `resume_bullets` |
 | `projects` | Academic and personal projects with `include_by_default: true` for ones to always show on resume |
 
 > `me.json` is in `.gitignore` — it will never be pushed to GitHub.
+
+### How the crawler uses your profile
+
+The crawler reads directly from `me.json` — no code editing needed:
+
+- **Search terms**: every entry in `target_roles` becomes a Seek search
+- **Location**: first entry in `job_preferences.locations` (e.g. `"Sydney, NSW"`)
+- **Salary ceiling**: 1.5x your `job_preferences.salary_range.max` — jobs above this are filtered out as too senior
 
 ---
 
@@ -117,7 +125,7 @@ This starts the dashboard at [http://localhost:5000](http://localhost:5000) and 
 | **Crawl Seek** | Fetches new job listings (takes ~5-8 mins) |
 | **Score All** | Runs Claude Haiku to score every unscored job (fast, cheap) |
 | **Score** (per row) | Score a single job |
-| **Generate** (per row) | Generate tailored resume + cover letter for that job |
+| **Generate** (per row) | Generate tailored resume and cover letter for that job |
 | **Regenerate** | Force re-generate even if cached documents exist |
 | **Download** | Download `.docx` or `.pdf` for resume or cover letter |
 | **Discard** | Hide a job from the list |
@@ -143,7 +151,7 @@ job-hunter/
 ├── scorer/
 │   └── score_jobs.py           # Scores jobs with Claude Haiku (fast, cheap)
 ├── generator/
-│   └── resume_generator.py     # Generates tailored resume + cover letter with Claude Sonnet
+│   └── resume_generator.py     # Generates tailored resume and cover letter with Claude Sonnet
 ├── dashboard/
 │   └── index.html              # Single-page local dashboard
 ├── templates/                  # Word templates (generated by create_templates.py)
@@ -154,28 +162,14 @@ job-hunter/
 
 ---
 
-## Customising search terms
-
-Edit `SEARCH_TERMS` in `crawler/seek_crawler.py`:
-
-```python
-SEARCH_TERMS = [
-    "Junior Developer",
-    "IT Support Analyst",
-    # add your own...
-]
-```
-
-The crawler searches Seek for each term in Sydney, NSW by default. Edit `start_actor_run()` to change location.
-
----
-
 ## Notes
 
 - **PDF export requires Microsoft Word.** If Word is not installed, `.docx` files will still be generated and downloadable — only PDF will be skipped (a warning appears in the dashboard).
 - **Close Word documents** before regenerating — Word locks files that are open.
 - **Scores below 5** are auto-discarded and hidden from the dashboard.
 - The resume is ATS-safe: plain text paragraphs, no tables, columns, or text boxes.
+- All social links and project URLs in the generated DOCX are proper blue underlined hyperlinks.
+- Date formats are consistent throughout (e.g. `Jan 2024 - Mar 2025`).
 
 ---
 

@@ -23,7 +23,7 @@ def _db():
 
 
 def _profile_json() -> str:
-    with open(ME_PATH) as f:
+    with open(ME_PATH, encoding="utf-8-sig") as f:
         return f.read()
 
 
