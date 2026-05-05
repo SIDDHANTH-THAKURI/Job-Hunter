@@ -1,4 +1,4 @@
-﻿import json
+import json
 import os
 import re
 import sqlite3
@@ -40,6 +40,21 @@ def _clean(s: str) -> str:
             )
 
 
+
+
+
+_MONTH_ABBR = [
+    ("January","Jan"),("February","Feb"),("March","Mar"),("April","Apr"),
+    ("May","May"),("June","Jun"),("July","Jul"),("August","Aug"),
+    ("September","Sep"),("October","Oct"),("November","Nov"),("December","Dec"),
+]
+
+
+def _fmt_period(s: str) -> str:
+    s = _clean(s)
+    for full, short in _MONTH_ABBR:
+        s = s.replace(full, short)
+    return s
 
 
 def _link(url: str) -> str:
@@ -89,11 +104,7 @@ def _build_prompt(profile: dict, job: dict) -> str:
         title_str = exp["title"]  # clean title only — label is framing context, not for display
         loc = exp.get("location", "").split("(")[0].strip().rstrip(",")
         company_str = f"{exp['company']}, {loc}" if loc else exp["company"]
-        period = _clean(exp["period"]) \
-            .replace("October","Oct").replace("January","Jan").replace("February","Feb") \
-            .replace("March","Mar").replace("April","Apr").replace("August","Aug") \
-            .replace("September","Sep").replace("November","Nov").replace("December","Dec") \
-            .replace("June","Jun").replace("July","Jul")
+        period = _fmt_period(exp["period"])
         count = exp.get("bullet_count", 4)
         bullets_ph = ', '.join(['"action verb + detail (max 22 words)"'] * count)
         role_desc = exp.get("framing", "")[:120]
@@ -120,11 +131,7 @@ def _build_prompt(profile: dict, job: dict) -> str:
         for edu in edu_list:
             bullets = edu.get("resume_bullets", [edu.get("relevance", "")])
             bullets_json = json.dumps(bullets)
-            period = _clean(edu["period"]) \
-                .replace("January", "Jan").replace("February", "Feb") \
-                .replace("March", "Mar").replace("April", "Apr").replace("August", "Aug") \
-                .replace("September", "Sep").replace("November", "Nov").replace("December", "Dec") \
-                .replace("June", "Jun").replace("July", "Jul")
+            period = _fmt_period(edu["period"])
             entries.append(
                 f'      {{\n'
                 f'        "degree": "{edu["degree"]}",\n'
@@ -151,11 +158,12 @@ def _build_prompt(profile: dict, job: dict) -> str:
             tailor = ['"Tailor bullet to job requirements — use details from profile"'] * tailor_count
             all_bullets = [f'"{b}"' for b in fixed]
             all_bullets = tailor + all_bullets  # tailored first, fixed last
+            proj_period = _fmt_period(proj["period"])
             academic_proj_entries.append(
                 f'      {{\n'
                 f'        "name": "{name}",\n'
                 f'        "context": "{ctx}",\n'
-                f'        "period": "{proj["period"]}",\n'
+                f'        "period": "{proj_period}",\n'
                 f'        "bullets": [{", ".join(all_bullets)}]\n'
                 f'      }}'
             )
@@ -170,10 +178,11 @@ def _build_prompt(profile: dict, job: dict) -> str:
             tailor_count = max(0, 3 - len(fixed))
             tailor = ['"Tailor bullet to job requirements — use details from profile"'] * tailor_count
             all_bullets = tailor + [f'"{b}"' for b in fixed]
+            proj_period = _fmt_period(proj["period"])
             personal_proj_entries.append(
                 f'      {{\n'
                 f'        "name": "{name}",\n'
-                f'        "period": "{proj["period"]}",\n'
+                f'        "period": "{proj_period}",\n'
                 f'        "bullets": [{", ".join(all_bullets)}]\n'
                 f'      }}'
             )
@@ -349,7 +358,7 @@ def _build_context_resume(resume_data: dict, tpl=None) -> dict:
         return {
             "degree":      e["degree"],
             "institution": e.get("institution", ""),
-            "period":      _clean(e.get("period", "")),
+            "period":      _fmt_period(e.get("period", "")),
             "bullets":     e.get("resume_bullets", []),
         }
 
@@ -390,7 +399,7 @@ def _build_context_resume(resume_data: dict, tpl=None) -> dict:
             {
                 "title":            e["title"],
                 "company":          e.get("company", ""),
-                "period":           _clean(e.get("period", "")),
+                "period":           _fmt_period(e.get("period", "")),
                 "role_description": e.get("role_description", ""),
                 "bullets":          _bullets(e.get("bullets", [])),
             }
@@ -400,7 +409,7 @@ def _build_context_resume(resume_data: dict, tpl=None) -> dict:
             {
                 "title":            e["title"],
                 "company":          e.get("company", ""),
-                "period":           _clean(e.get("period", "")),
+                "period":           _fmt_period(e.get("period", "")),
                 "role_description": e.get("role_description", ""),
                 "bullets":          _bullets(e.get("bullets", [])),
             }
@@ -412,7 +421,7 @@ def _build_context_resume(resume_data: dict, tpl=None) -> dict:
             {
                 "name":    p["name"],
                 "context": p.get("context", ""),
-                "period":  _clean(p.get("period", "")),
+                "period":  _fmt_period(p.get("period", "")),
                 "bullets": _bullets(p.get("bullets", [])),
             }
             for p in resume_data.get("academic_projects", [])
@@ -420,7 +429,7 @@ def _build_context_resume(resume_data: dict, tpl=None) -> dict:
         "personal_projects": [
             {
                 "name":    p["name"],
-                "period":  _clean(p.get("period", "")),
+                "period":  _fmt_period(p.get("period", "")),
                 "bullets": _bullets(p.get("bullets", [])),
             }
             for p in resume_data.get("personal_projects", [])
