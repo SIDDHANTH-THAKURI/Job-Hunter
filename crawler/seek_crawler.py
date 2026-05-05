@@ -13,23 +13,46 @@ APIFY_API_KEY = os.getenv("APIFY_API_KEY")
 ACTOR_ID = "websift~seek-job-scraper"
 APIFY_BASE = "https://api.apify.com/v2"
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "jobs.db")
+ME_PATH  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "me.json")
 RUN_TIMEOUT = 420
 
-SEARCH_TERMS = [
-    "IT Support Analyst",
-    "Service Desk Analyst",
-    "Application Support Analyst",
-    "Junior Business Analyst",
-    "Junior Developer",
-    "Junior Software Engineer",
-    "Technical Support",
-    "Systems Administrator",
-    "IT Help Desk",
-    "Junior Data Analyst",
-    "AI Tools Specialist",
-    "Project Coordinator IT",
-    "Junior Product Manager",
-]
+
+def _load_profile() -> dict:
+    try:
+        with open(ME_PATH, encoding="utf-8-sig") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _crawl_config() -> dict:
+    """Derive search terms, location, and salary ceiling from me.json."""
+    p = _load_profile()
+    prefs = p.get("job_preferences", {})
+
+    # Search terms — use target_roles from profile; no hardcoded fallback needed
+    search_terms = p.get("target_roles", [])
+
+    # Location — first entry in job_preferences.locations, e.g. "Sydney, NSW"
+    location, state = "Sydney", "NSW"
+    raw_locs = prefs.get("locations", [])
+    if raw_locs:
+        parts = [s.strip() for s in raw_locs[0].split(",")]
+        if len(parts) >= 2:
+            location, state = parts[0], parts[1]
+        elif parts:
+            location = parts[0]
+
+    # Salary ceiling — 1.5× the profile max (filters clearly senior roles)
+    salary_max = prefs.get("salary_range", {}).get("max", 80_000)
+    salary_ceiling = int(salary_max * 1.5)
+
+    return {
+        "search_terms":   search_terms,
+        "location":       location,
+        "state":          state,
+        "salary_ceiling": salary_ceiling,
+    }
 
 # ─── Exclusion filters ────────────────────────────────────────────────────────
 
@@ -47,9 +70,6 @@ EXCLUDE_TITLE_WORDS = [
     "defence", "defense", "adf ", "army", "navy", "air force",
     "security clearance", "clearance required",
 ]
-
-SALARY_CEILING = 120_000  # exclude jobs where minimum salary clearly exceeds this
-
 
 def _is_excluded_title(title: str) -> tuple[bool, str]:
     """Return (excluded, matched_keyword). Case-insensitive substring match."""
@@ -89,9 +109,9 @@ def _salary_min(salary: str) -> int | None:
     return min(nums) if nums else None
 
 
-def _salary_too_high(salary: str) -> bool:
+def _salary_too_high(salary: str, ceiling: int) -> bool:
     minimum = _salary_min(salary)
-    return minimum is not None and minimum > SALARY_CEILING
+    return minimum is not None and minimum > ceiling
 
 
 # ─── DB ───────────────────────────────────────────────────────────────────────
@@ -118,11 +138,11 @@ def init_db(conn):
 
 # ─── Apify helpers ────────────────────────────────────────────────────────────
 
-def start_actor_run(keyword):
+def start_actor_run(keyword, location="Sydney", state="NSW"):
     payload = {
         "searchTerm": keyword,
-        "location": "Sydney",
-        "state": "NSW",
+        "location": location,
+        "state": state,
         "dateRange": 7,
         "workTypes": ["fulltime", "parttime"],
         "maxResults": 100,
@@ -202,6 +222,19 @@ def crawl():
     if not APIFY_API_KEY:
         raise EnvironmentError("APIFY_API_KEY is not set in .env")
 
+    cfg = _crawl_config()
+    search_terms   = cfg["search_terms"]
+    location       = cfg["location"]
+    state          = cfg["state"]
+    salary_ceiling = cfg["salary_ceiling"]
+
+    if not search_terms:
+        raise ValueError("No target_roles found in me.json — add at least one job title to search for.")
+
+    print(f"[crawler] Location : {location}, {state}")
+    print(f"[crawler] Salary ceiling : ${salary_ceiling:,}")
+    print(f"[crawler] Searching {len(search_terms)} terms from me.json target_roles")
+
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     init_db(conn)
@@ -214,10 +247,10 @@ def crawl():
     total_excl_salary = 0
     excl_title_examples = []   # collect a few examples for the summary
 
-    for term in SEARCH_TERMS:
+    for term in search_terms:
         print(f"\n[>] Searching: {term}")
         try:
-            run_id, dataset_id = start_actor_run(term)
+            run_id, dataset_id = start_actor_run(term, location, state)
             print(f"    Run started ({run_id}) — polling…")
             wait_for_run(run_id)
 
@@ -245,7 +278,7 @@ def crawl():
                     continue
 
                 # ── Filter: salary ─────────────────────────────────────────
-                if _salary_too_high(job["salary"]):
+                if _salary_too_high(job["salary"], salary_ceiling):
                     excl_salary += 1
                     total_excl_salary += 1
                     continue
@@ -292,7 +325,7 @@ def crawl():
  New jobs inserted         : {total_new}
  Duplicates skipped        : {total_dupes}
  Excluded by title         : {total_excl_title}  (Senior/Lead/Manager/wrong domain)
- Excluded by salary >$120k : {total_excl_salary}
+ Excluded by salary >${salary_ceiling:,} : {total_excl_salary}
 {'=' * 55}""")
 
     if excl_title_examples:
