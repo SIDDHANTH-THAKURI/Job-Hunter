@@ -40,6 +40,35 @@ def _clean(s: str) -> str:
             )
 
 
+
+
+def _link(url: str) -> str:
+    if url and not url.startswith("http"):
+        return "https://" + url
+    return url or ""
+
+
+_URL_RE = re.compile(r'(https?://\S+)')
+
+
+def _rt_with_links(text: str, tpl, size: int = 19) -> object:
+    from docxtpl import RichText
+    if not _URL_RE.search(text):
+        return text
+    rt = RichText()
+    for part in _URL_RE.split(text):
+        if _URL_RE.fullmatch(part):
+            url = part.rstrip(".,;)\"']")
+            suffix = part[len(url):]
+            rt.add(url, url_id=tpl.build_url_id(url), font="Calibri", size=size,
+                   color="1A56DB", underline=True)
+            if suffix:
+                rt.add(suffix, font="Calibri", size=size)
+        elif part:
+            rt.add(part, font="Calibri", size=size)
+    return rt
+
+
 # ─── Claude prompt (built dynamically from me.json) ──────────────────────────
 
 def _build_prompt(profile: dict, job: dict) -> str:
@@ -295,7 +324,9 @@ def _ensure_templates():
         ct.create_cover_template()
 
 
-def _build_context_resume(resume_data: dict) -> dict:
+
+
+def _build_context_resume(resume_data: dict, tpl=None) -> dict:
     from docxtpl import RichText
 
     full_profile = _profile()
@@ -305,11 +336,10 @@ def _build_context_resume(resume_data: dict) -> dict:
 
     def _skill_rt(label, value):
         rt = RichText()
-        rt.add(f"{label}:  ", bold=True, font="Calibri", size=19)  # 19 half-pts = 9.5pt
+        rt.add(f"{label}:  ", bold=True, font="Calibri", size=19)
         rt.add(value, font="Calibri", size=19)
         return rt
 
-    # Split education by category
     edu_main = [e for e in full_profile.get("education", [])
                 if e.get("education_category", "main") == "main"]
     edu_extra = [e for e in full_profile.get("education", [])
@@ -322,37 +352,47 @@ def _build_context_resume(resume_data: dict) -> dict:
             "period":      _clean(e.get("period", "")),
             "bullets":     e.get("resume_bullets", []),
         }
-    def _link(url):
-        """Ensure URL has https:// so Word creates a real hyperlink, not a file:// path."""
-        if url and not url.startswith("http"):
-            return "https://" + url
-        return url
 
-    contact2_parts = [
-        f"LinkedIn: {_link(profile['linkedin'])}",
-        f"GitHub: {_link(profile['github'])}",
-        f"Portfolio: {_link(portfolio)}",
+    def _bullets(lst):
+        if tpl is None:
+            return [_clean(b) for b in lst]
+        return [_rt_with_links(_clean(b), tpl) for b in lst]
+
+    # contact2: label + hyperlinked URL for each social profile
+    contact2_links = [
+        ("LinkedIn",  _link(profile["linkedin"])),
+        ("GitHub",    _link(profile["github"])),
+        ("Portfolio", _link(portfolio)),
     ]
     if leetcode:
-        contact2_parts.append(f"LeetCode: {_link(leetcode)}")
+        contact2_links.append(("LeetCode", _link(leetcode)))
+
+    if tpl is not None:
+        ct2 = RichText()
+        for i, (label, url) in enumerate(contact2_links):
+            if i > 0:
+                ct2.add("  |  ", font="Calibri", size=17, color="55657A")
+            ct2.add(f"{label}: ", font="Calibri", size=17, color="55657A")
+            ct2.add(url, url_id=tpl.build_url_id(url), font="Calibri", size=17,
+                    color="1A56DB", underline=True)
+        contact2 = ct2
+    else:
+        contact2 = "  |  ".join(f"{l}: {u}" for l, u in contact2_links)
 
     return {
-        "name":           profile["name"].upper(),
-        "title_subtitle": resume_data.get("title_subtitle", ""),
-        "contact1":       f"Mobile: {profile['phone']}  |  Email: {profile['email']}  |  Address: {profile['location']}",
-        "contact2":       "  |  ".join(contact2_parts),
+        "name":             profile["name"].upper(),
+        "title_subtitle":   resume_data.get("title_subtitle", ""),
+        "contact1":         f"Mobile: {profile['phone']}  |  Email: {profile['email']}  |  Address: {profile['location']}",
+        "contact2":         contact2,
         "career_objective": resume_data.get("career_objective", ""),
-        "skills": [
-            _skill_rt(k, v)
-            for k, v in resume_data.get("skills", {}).items()
-        ],
+        "skills": [_skill_rt(k, v) for k, v in resume_data.get("skills", {}).items()],
         "relevant_experience": [
             {
                 "title":            e["title"],
                 "company":          e.get("company", ""),
                 "period":           _clean(e.get("period", "")),
                 "role_description": e.get("role_description", ""),
-                "bullets":          e.get("bullets", []),
+                "bullets":          _bullets(e.get("bullets", [])),
             }
             for e in resume_data.get("relevant_experience", [])
         ],
@@ -362,7 +402,7 @@ def _build_context_resume(resume_data: dict) -> dict:
                 "company":          e.get("company", ""),
                 "period":           _clean(e.get("period", "")),
                 "role_description": e.get("role_description", ""),
-                "bullets":          e.get("bullets", []),
+                "bullets":          _bullets(e.get("bullets", [])),
             }
             for e in resume_data.get("other_experience", [])
         ],
@@ -373,7 +413,7 @@ def _build_context_resume(resume_data: dict) -> dict:
                 "name":    p["name"],
                 "context": p.get("context", ""),
                 "period":  _clean(p.get("period", "")),
-                "bullets": p.get("bullets", []),
+                "bullets": _bullets(p.get("bullets", [])),
             }
             for p in resume_data.get("academic_projects", [])
         ],
@@ -381,7 +421,7 @@ def _build_context_resume(resume_data: dict) -> dict:
             {
                 "name":    p["name"],
                 "period":  _clean(p.get("period", "")),
-                "bullets": p.get("bullets", []),
+                "bullets": _bullets(p.get("bullets", [])),
             }
             for p in resume_data.get("personal_projects", [])
         ],
@@ -393,26 +433,34 @@ def _fill_resume(resume_data: dict, path: Path):
     from docxtpl import DocxTemplate
     _ensure_templates()
     tpl = DocxTemplate(str(TEMPLATES_DIR / "resume.docx"))
-    tpl.render(_build_context_resume(resume_data))
+    tpl.render(_build_context_resume(resume_data, tpl))
     tpl.save(str(path))
 
 
 def _fill_cover(cover_data: dict, job: dict, path: Path):
-    from docxtpl import DocxTemplate
+    from docxtpl import DocxTemplate, RichText
     _ensure_templates()
     profile = _profile()["personal"]
-    portfolio = profile.get("portfolio", "")
+    portfolio = _link(profile.get("portfolio", ""))
+    linkedin  = _link(profile["linkedin"])
     tpl = DocxTemplate(str(TEMPLATES_DIR / "cover.docx"))
+    ct2 = RichText()
+    ct2.add(linkedin, url_id=tpl.build_url_id(linkedin), font="Calibri", size=18,
+            color="1A56DB", underline=True)
+    ct2.add("  |  ", font="Calibri", size=18, color="55657A")
+    ct2.add(portfolio, url_id=tpl.build_url_id(portfolio), font="Calibri", size=18,
+            color="1A56DB", underline=True)
     tpl.render({
         "name":      profile["name"],
         "contact1":  f"{profile['phone']}  |  {profile['email']}  |  {profile['location']}",
-        "contact2":  f"{profile['linkedin']}  |  {portfolio}",
+        "contact2":  ct2,
         "date":      date.today().strftime("%d %B %Y"),
         "company":   job.get("company") or "",
         "subject":   cover_data.get("subject", ""),
         "paragraphs": cover_data.get("paragraphs", []),
     })
     tpl.save(str(path))
+
 
 
 def _to_pdf(docx_path: Path, pdf_path: Path):
