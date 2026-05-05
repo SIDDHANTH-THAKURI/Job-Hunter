@@ -300,6 +300,17 @@ def download(job_id, doc_type):
         abort(400)
 
     filepath = OUTPUT_DIR / f"{job_id}_{stem_map[doc_type]}{ext_map[doc_type]}"
+
+    # If the PDF is missing but the DOCX exists, try to generate it now
+    if not filepath.exists() and ext_map[doc_type] == ".pdf":
+        docx_path = OUTPUT_DIR / f"{job_id}_{stem_map[doc_type]}.docx"
+        if docx_path.exists():
+            try:
+                from generator.resume_generator import _to_pdf
+                _to_pdf(docx_path, filepath)
+            except Exception:
+                pass  # will 404 below; user can still download DOCX
+
     if not filepath.exists():
         abort(404)
 

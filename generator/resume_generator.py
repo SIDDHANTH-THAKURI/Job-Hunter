@@ -1016,10 +1016,21 @@ def generate_for_job(job_id: str, force: bool = False) -> dict:
 
     resume_docx = OUTPUT_DIR / f"{job_id}_resume.docx"
     if not force and job.get("resume_text") and resume_docx.exists():
+        # Cached DOCX exists — ensure PDFs are present too
+        pdf_warnings = []
+        for stem in ("resume", "cover"):
+            pdf_path  = OUTPUT_DIR / f"{job_id}_{stem}.pdf"
+            docx_path = OUTPUT_DIR / f"{job_id}_{stem}.docx"
+            if not pdf_path.exists() and docx_path.exists():
+                try:
+                    _to_pdf(docx_path, pdf_path)
+                except Exception as e:
+                    pdf_warnings.append(f"{stem}: {e}")
         return {
-            "resume_text": job["resume_text"],
+            "resume_text":       job["resume_text"],
             "cover_letter_text": job["cover_letter_text"],
-            "has_files": True,
+            "has_files":         True,
+            "pdf_warnings":      pdf_warnings,
         }
 
     profile = _profile()
