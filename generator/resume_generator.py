@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 import re
 import sqlite3
@@ -28,6 +28,18 @@ def _profile():
         return json.load(f)
 
 
+def _clean(s: str) -> str:
+    """Replace Unicode dashes and non-breaking spaces with plain ASCII equivalents."""
+    return (s
+            .replace('–', '-')   # en-dash
+            .replace('—', '-')   # em-dash
+            .replace('−', '-')   # minus sign
+            .replace('‐', '-')   # hyphen
+            .replace('‑', '-')   # non-breaking hyphen
+            .replace(' ', ' ')   # non-breaking space
+            )
+
+
 # ─── Claude prompt (built dynamically from me.json) ──────────────────────────
 
 def _build_prompt(profile: dict, job: dict) -> str:
@@ -48,7 +60,7 @@ def _build_prompt(profile: dict, job: dict) -> str:
         title_str = exp["title"]  # clean title only — label is framing context, not for display
         loc = exp.get("location", "").split("(")[0].strip().rstrip(",")
         company_str = f"{exp['company']}, {loc}" if loc else exp["company"]
-        period = exp["period"] \
+        period = _clean(exp["period"]) \
             .replace("October","Oct").replace("January","Jan").replace("February","Feb") \
             .replace("March","Mar").replace("April","Apr").replace("August","Aug") \
             .replace("September","Sep").replace("November","Nov").replace("December","Dec") \
@@ -79,7 +91,8 @@ def _build_prompt(profile: dict, job: dict) -> str:
         for edu in edu_list:
             bullets = edu.get("resume_bullets", [edu.get("relevance", "")])
             bullets_json = json.dumps(bullets)
-            period = edu["period"].replace("January", "Jan").replace("February", "Feb") \
+            period = _clean(edu["period"]) \
+                .replace("January", "Jan").replace("February", "Feb") \
                 .replace("March", "Mar").replace("April", "Apr").replace("August", "Aug") \
                 .replace("September", "Sep").replace("November", "Nov").replace("December", "Dec") \
                 .replace("June", "Jun").replace("July", "Jul")
@@ -309,12 +322,6 @@ def _build_context_resume(resume_data: dict) -> dict:
             "period":      _clean(e.get("period", "")),
             "bullets":     e.get("resume_bullets", []),
         }
-
-    def _clean(s):
-        """Replace Unicode dashes/smart-quotes with ASCII so Word renders cleanly."""
-        return (s.replace('–', '-').replace('—', '-')
-                 .replace('−', '-').replace(' ', ' '))
-
     def _link(url):
         """Ensure URL has https:// so Word creates a real hyperlink, not a file:// path."""
         if url and not url.startswith("http"):
