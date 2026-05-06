@@ -145,7 +145,7 @@ def start_actor_run(keyword, location="Sydney", state="NSW"):
         "state": state,
         "dateRange": 7,
         "workTypes": ["fulltime", "parttime"],
-        "maxResults": 100,
+        "maxResults": 30,
     }
     r = requests.post(
         f"{APIFY_BASE}/acts/{ACTOR_ID}/runs",
