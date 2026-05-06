@@ -26,31 +26,27 @@ def _load_profile() -> dict:
 
 
 def _crawl_config() -> dict:
-    """Derive search terms, location, and salary ceiling from me.json."""
+    """Derive search terms, locations, and salary ceiling from me.json."""
     p = _load_profile()
     prefs = p.get("job_preferences", {})
 
-    # Search terms — use target_roles from profile; no hardcoded fallback needed
     search_terms = p.get("target_roles", [])
 
-    # Location — first entry in job_preferences.locations, e.g. "Sydney, NSW"
-    location, state = "Sydney", "NSW"
-    raw_locs = prefs.get("locations", [])
-    if raw_locs:
-        parts = [s.strip() for s in raw_locs[0].split(",")]
+    # Parse all "City, STATE" entries from locations (skip free-text entries)
+    locations = []
+    for raw in prefs.get("locations", []):
+        parts = [s.strip() for s in raw.split(",")]
         if len(parts) >= 2:
-            location, state = parts[0], parts[1]
-        elif parts:
-            location = parts[0]
+            locations.append((parts[0], parts[1]))
+    if not locations:
+        locations = [("Sydney", "NSW")]
 
-    # Salary ceiling — 1.5× the profile max (filters clearly senior roles)
     salary_max = prefs.get("salary_range", {}).get("max", 80_000)
     salary_ceiling = int(salary_max * 1.5)
 
     return {
         "search_terms":   search_terms,
-        "location":       location,
-        "state":          state,
+        "locations":      locations,
         "salary_ceiling": salary_ceiling,
     }
 
@@ -224,16 +220,16 @@ def crawl():
 
     cfg = _crawl_config()
     search_terms   = cfg["search_terms"]
-    location       = cfg["location"]
-    state          = cfg["state"]
+    locations      = cfg["locations"]
     salary_ceiling = cfg["salary_ceiling"]
 
     if not search_terms:
         raise ValueError("No target_roles found in me.json — add at least one job title to search for.")
 
-    print(f"[crawler] Location : {location}, {state}")
+    loc_str = ", ".join(f"{loc}/{st}" for loc, st in locations)
+    print(f"[crawler] Locations : {loc_str}")
     print(f"[crawler] Salary ceiling : ${salary_ceiling:,}")
-    print(f"[crawler] Searching {len(search_terms)} terms from me.json target_roles")
+    print(f"[crawler] Searching {len(search_terms)} terms × {len(locations)} cities = {len(search_terms) * len(locations)} runs")
 
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
@@ -248,72 +244,73 @@ def crawl():
     excl_title_examples = []   # collect a few examples for the summary
 
     for term in search_terms:
-        print(f"\n[>] Searching: {term}")
-        try:
-            run_id, dataset_id = start_actor_run(term, location, state)
-            print(f"    Run started ({run_id}) — polling…")
-            wait_for_run(run_id)
+        for location, state in locations:
+            print(f"\n[>] Searching: {term} in {location}, {state}")
+            try:
+                run_id, dataset_id = start_actor_run(term, location, state)
+                print(f"    Run started ({run_id}) — polling…")
+                wait_for_run(run_id)
 
-            items = fetch_items(dataset_id)
-            print(f"    {len(items)} jobs returned from Apify")
-            total_found += len(items)
+                items = fetch_items(dataset_id)
+                print(f"    {len(items)} jobs returned from Apify")
+                total_found += len(items)
 
-            new_count = 0
-            dupe_count = 0
-            excl_title = 0
-            excl_salary = 0
+                new_count = 0
+                dupe_count = 0
+                excl_title = 0
+                excl_salary = 0
 
-            for item in items:
-                job = extract_job(item)
-                if not job["job_id"]:
-                    continue
+                for item in items:
+                    job = extract_job(item)
+                    if not job["job_id"]:
+                        continue
 
-                # ── Filter: title ──────────────────────────────────────────
-                excluded, kw = _is_excluded_title(job["title"])
-                if excluded:
-                    excl_title += 1
-                    total_excl_title += 1
-                    if len(excl_title_examples) < 8:
-                        excl_title_examples.append(f"{job['title']} [{kw}]")
-                    continue
+                    # ── Filter: title ──────────────────────────────────────────
+                    excluded, kw = _is_excluded_title(job["title"])
+                    if excluded:
+                        excl_title += 1
+                        total_excl_title += 1
+                        if len(excl_title_examples) < 8:
+                            excl_title_examples.append(f"{job['title']} [{kw}]")
+                        continue
 
-                # ── Filter: salary ─────────────────────────────────────────
-                if _salary_too_high(job["salary"], salary_ceiling):
-                    excl_salary += 1
-                    total_excl_salary += 1
-                    continue
+                    # ── Filter: salary ─────────────────────────────────────────
+                    if _salary_too_high(job["salary"], salary_ceiling):
+                        excl_salary += 1
+                        total_excl_salary += 1
+                        continue
 
-                # ── Deduplicate ────────────────────────────────────────────
-                exists = conn.execute(
-                    "SELECT 1 FROM jobs WHERE job_id = ?", (job["job_id"],)
-                ).fetchone()
-                if exists:
-                    dupe_count += 1
-                    total_dupes += 1
-                    continue
+                    # ── Deduplicate ────────────────────────────────────────────
+                    exists = conn.execute(
+                        "SELECT 1 FROM jobs WHERE job_id = ?", (job["job_id"],)
+                    ).fetchone()
+                    if exists:
+                        dupe_count += 1
+                        total_dupes += 1
+                        continue
 
-                conn.execute(
-                    """INSERT INTO jobs
-                       (job_id, title, company, location, salary, date_posted,
-                        job_url, description, date_crawled, scored, score, discarded)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, 0)""",
-                    (
-                        job["job_id"], job["title"], job["company"],
-                        job["location"], job["salary"], job["date_posted"],
-                        job["job_url"], job["description"], today,
-                    ),
-                )
-                new_count += 1
-                total_new += 1
+                    conn.execute(
+                        """INSERT INTO jobs
+                           (job_id, title, company, location, salary, date_posted,
+                            job_url, description, date_crawled, scored, score, discarded)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, 0)""",
+                        (
+                            job["job_id"], job["title"], job["company"],
+                            job["location"], job["salary"], job["date_posted"],
+                            job["job_url"], job["description"], today,
+                        ),
+                    )
+                    new_count += 1
+                    total_new += 1
 
-            conn.commit()
-            parts = [f"Inserted {new_count} new", f"Dupes {dupe_count}"]
-            if excl_title:  parts.append(f"Excl-title {excl_title}")
-            if excl_salary: parts.append(f"Excl-salary {excl_salary}")
-            print(f"    {' | '.join(parts)}")
+                conn.commit()
+                parts = [f"Inserted {new_count} new", f"Dupes {dupe_count}"]
+                if excl_title:  parts.append(f"Excl-title {excl_title}")
+                if excl_salary: parts.append(f"Excl-salary {excl_salary}")
+                print(f"    {' | '.join(parts)}")
 
-        except Exception as exc:
-            print(f"    ERROR for '{term}': {exc}")
+            except Exception as exc:
+                print(f"    ERROR for '{term}' in {location}: {exc}")
 
     conn.close()
 
