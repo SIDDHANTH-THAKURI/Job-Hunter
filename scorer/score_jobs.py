@@ -147,7 +147,7 @@ Description:
         conn.execute(
             """UPDATE jobs
                SET scored=1, score=?, score_reason=?, missing_skills=?, visa_ok=?,
-                   discarded=CASE WHEN ? THEN 1 ELSE discarded END
+                   discarded=CASE WHEN ? AND COALESCE(status,'Not Applied')='Not Applied' THEN 1 ELSE discarded END
                WHERE job_id=?""",
             [score, reason, json.dumps(missing_skills), 1 if visa_ok else 0,
              auto_discard, job_id],

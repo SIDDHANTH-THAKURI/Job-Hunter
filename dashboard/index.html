@@ -784,7 +784,7 @@ function rowHtml(j) {
     <td>${badge}</td>
     <td class="c-reason reason-cell" title="${esc(j.score_reason||'')}">${tr(j.score_reason,50)}</td>
     <td class="c-status">
-      <select class="status-sel ${statusSelClass(st)}" onchange="updateStatus('${id}',this.value,this)">${opts}</select>
+      <select class="status-sel ${statusSelClass(st)}" data-prev="${st}" onchange="updateStatus('${id}',this.value,this)">${opts}</select>
     </td>
     <td class="c-actions">
       <div class="act-row">
@@ -800,13 +800,24 @@ function esc(s) { return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
 // ── Status update ──────────────────────────────────────────────────────────────
 async function updateStatus(id, st, sel) {
+  const prev = sel.dataset.prev || 'Not Applied';
+  sel.dataset.prev = st;
   sel.className = `status-sel ${statusSelClass(st)}`;
   const j = allJobs.find(x => x.job_id === id);
   if (j) j.status = st;
   try {
-    await fetch(`/api/jobs/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:st}) });
+    const r = await fetch(`/api/jobs/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:st}) });
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || `Server error ${r.status}`);
     loadStats();
-  } catch { toast('Failed to update status','error'); }
+    toast(`Status saved: ${st}`, 'success');
+  } catch (e) {
+    // Revert on failure
+    sel.value = prev;
+    sel.className = `status-sel ${statusSelClass(prev)}`;
+    if (j) j.status = prev;
+    toast('Failed to save status: ' + e.message, 'error');
+  }
 }
 
 // ── Score single ───────────────────────────────────────────────────────────────
