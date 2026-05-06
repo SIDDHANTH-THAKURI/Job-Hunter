@@ -338,6 +338,21 @@ tr:hover td { background: #fafbff; }
 .toast.info    { border-left: 3px solid var(--blue); }
 
 @media (max-width: 900px) { .c-location, .c-salary, .c-date { display: none; } }
+
+/* ── Add Job form ─────────────────────────────────────────────────────────── */
+#add-modal .modal { max-width: 580px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid .full { grid-column: 1 / -1; }
+.field label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; }
+.field label .req { color: var(--red); margin-left: 2px; }
+.field input, .field textarea {
+  width: 100%; padding: 8px 11px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; color: var(--text); background: var(--surface);
+  outline: none; font-family: inherit; transition: border-color .15s;
+}
+.field input:focus, .field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
+.field textarea { resize: vertical; min-height: 130px; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -353,6 +368,7 @@ tr:hover td { background: #fafbff; }
       💰 Today: <span id="chip-cost">$0.00</span>
     </button>
     <button class="btn btn-secondary btn-sm" id="btn-score-all" onclick="startScoreAll()">⭐ Score All</button>
+    <button class="btn btn-secondary btn-sm" onclick="openAddModal()">➕ Add Job</button>
     <button class="btn btn-primary" id="btn-crawl" onclick="startCrawl()">🔍 Crawl Jobs</button>
   </div>
 </header>
@@ -543,6 +559,52 @@ tr:hover td { background: #fafbff; }
       <div id="apify-usage-body" style="color:var(--muted);font-size:13px">Loading…</div>
 
       <p class="note-text" id="usage-note"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Job Modal ──────────────────────────────────────────────────────── -->
+<div class="backdrop" id="add-modal" onclick="onBackdropClick(event,'add-modal')">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">➕ Add Job Manually</div>
+        <div class="modal-sub">Paste a job you found outside the crawler — it'll appear in the dashboard with all the same actions.</div>
+      </div>
+      <button class="modal-x" onclick="closeModal('add-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field full">
+          <label>Job URL <span style="font-size:11px;color:var(--muted);font-weight:400">(optional — used as the title link)</span></label>
+          <input type="url" id="add-url" placeholder="https://www.seek.com.au/job/…">
+        </div>
+        <div class="field">
+          <label>Job Title <span class="req">*</span></label>
+          <input type="text" id="add-title" placeholder="e.g. Junior Developer">
+        </div>
+        <div class="field">
+          <label>Company <span class="req">*</span></label>
+          <input type="text" id="add-company" placeholder="e.g. Atlassian">
+        </div>
+        <div class="field">
+          <label>Location</label>
+          <input type="text" id="add-location" placeholder="e.g. Sydney, NSW">
+        </div>
+        <div class="field">
+          <label>Salary</label>
+          <input type="text" id="add-salary" placeholder="e.g. $70,000 – $80,000">
+        </div>
+        <div class="field full">
+          <label>Job Description <span class="req">*</span></label>
+          <textarea id="add-desc" placeholder="Paste the full job description here…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('add-modal')">Cancel</button>
+      <span style="flex:1"></span>
+      <button class="btn btn-primary" id="add-submit-btn" onclick="submitManualJob()">Add to Dashboard</button>
     </div>
   </div>
 </div>
@@ -985,6 +1047,50 @@ function updateBudget() {
   fill.style.width = `${pct}%`;
   fill.style.background = pct >= 80 ? 'var(--red)' : pct >= 50 ? 'var(--amber)' : 'var(--green)';
   label.textContent = `$${spent.toFixed(4)} spent of $${budget.toFixed(2)} budget (${pct.toFixed(1)}%)`;
+}
+
+// ── Add Job manually ───────────────────────────────────────────────────────────
+function openAddModal() {
+  ['add-url','add-title','add-company','add-location','add-salary','add-desc']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('add-submit-btn').disabled = false;
+  document.getElementById('add-submit-btn').textContent = 'Add to Dashboard';
+  openModal('add-modal');
+}
+
+async function submitManualJob() {
+  const title = document.getElementById('add-title').value.trim();
+  const desc  = document.getElementById('add-desc').value.trim();
+  if (!title) { toast('Job title is required', 'error'); return; }
+  if (!desc)  { toast('Job description is required', 'error'); return; }
+
+  const btn = document.getElementById('add-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Adding…';
+
+  try {
+    const r = await fetch('/api/jobs/manual', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        company:  document.getElementById('add-company').value.trim(),
+        location: document.getElementById('add-location').value.trim(),
+        salary:   document.getElementById('add-salary').value.trim(),
+        job_url:  document.getElementById('add-url').value.trim(),
+        description: desc,
+      }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    closeModal('add-modal');
+    await loadAll();
+    toast(`"${title}" added — score it to rank it`, 'success');
+  } catch (e) {
+    toast('Failed to add job: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Add to Dashboard';
+  }
 }
 
 // ── Modal helpers ──────────────────────────────────────────────────────────────

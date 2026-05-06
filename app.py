@@ -1,7 +1,8 @@
 import os
 import sqlite3
 import threading
-from datetime import datetime, timezone
+import uuid
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import requests as _requests
@@ -138,6 +139,34 @@ def update_job(job_id):
         )
         conn.commit()
     return jsonify({"ok": True})
+
+
+@app.route("/api/jobs/manual", methods=["POST"])
+def add_manual_job():
+    data = request.json or {}
+    description = (data.get("description") or "").strip()
+    if not description:
+        return jsonify({"error": "description is required"}), 400
+
+    job_id   = f"manual_{uuid.uuid4().hex[:12]}"
+    title    = (data.get("title")    or "").strip() or "Untitled Role"
+    company  = (data.get("company")  or "").strip() or "Unknown Company"
+    location = (data.get("location") or "").strip() or None
+    salary   = (data.get("salary")   or "").strip() or None
+    job_url  = (data.get("job_url")  or "").strip() or None
+    today    = date.today().isoformat()
+
+    with _db() as conn:
+        conn.execute(
+            """INSERT INTO jobs
+               (job_id, title, company, location, salary, date_posted,
+                job_url, description, date_crawled, scored, score, discarded)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, 0)""",
+            (job_id, title, company, location, salary, today, job_url, description, today),
+        )
+        conn.commit()
+
+    return jsonify({"job_id": job_id, "ok": True})
 
 
 # ─── Stats ────────────────────────────────────────────────────────────────────
