@@ -11,6 +11,8 @@ output/*.docx
 output/*.pdf
 # Generated DOCX templates (recreated by create_templates.py)
 templates/*.docx
+# Personal resume output
+my-resume/
 
 # Python
 __pycache__/
