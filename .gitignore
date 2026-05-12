@@ -2,6 +2,10 @@
 .env
 me.json
 
+# Indeed bot — browser profile and session (contains personal cookies/login)
+bot/chrome_profile/
+bot/session.json
+
 # Claude Code local settings (may contain API keys in allow-rules)
 .claude/
 
@@ -24,6 +28,9 @@ dist/
 build/
 venv/
 .venv/
+
+# Session planning (contains implementation details, not for git)
+NEXT_SESSION_PLAN.md
 
 # OS
 .DS_Store

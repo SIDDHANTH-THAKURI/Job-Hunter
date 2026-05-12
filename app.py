@@ -39,10 +39,29 @@ def init_db():
             "cover_letter_text": "ALTER TABLE jobs ADD COLUMN cover_letter_text TEXT",
             "missing_skills": "ALTER TABLE jobs ADD COLUMN missing_skills TEXT",
             "visa_ok": "ALTER TABLE jobs ADD COLUMN visa_ok INTEGER DEFAULT 1",
+            "source": "ALTER TABLE jobs ADD COLUMN source TEXT DEFAULT 'seek'",
         }
         for col, sql in new_cols.items():
             if col not in existing:
                 conn.execute(sql)
+        if "applied_at" not in existing:
+            conn.execute("ALTER TABLE jobs ADD COLUMN applied_at TEXT")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
+        default_settings = {
+            "indeed_scheduler_enabled": "false",
+            "indeed_auto_apply_threshold": "7",
+            "indeed_daily_cap": "20",
+            "indeed_schedule_time": "08:00",
+            "indeed_applies_today": "0",
+            "indeed_last_run": "",
+        }
+        for k, v in default_settings.items():
+            conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
         conn.execute("""
             CREATE TABLE IF NOT EXISTS api_usage (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -160,8 +179,8 @@ def add_manual_job():
         conn.execute(
             """INSERT INTO jobs
                (job_id, title, company, location, salary, date_posted,
-                job_url, description, date_crawled, scored, score, discarded)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, 0)""",
+                job_url, description, date_crawled, scored, score, discarded, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, 0, 'manual')""",
             (job_id, title, company, location, salary, today, job_url, description, today),
         )
         conn.commit()
@@ -359,6 +378,162 @@ def download(job_id, doc_type):
     nice_name = f"{_full_name}_{stem_map[doc_type].capitalize()}_{company}_{title}{ext_map[doc_type]}"
 
     return send_file(filepath, as_attachment=True, download_name=nice_name)
+
+
+# ─── Indeed ───────────────────────────────────────────────────────────────────
+
+def _get_setting(conn, key: str, default: str = "") -> str:
+    row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+    return row[0] if row else default
+
+
+def _set_setting(conn, key: str, value: str):
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+    conn.commit()
+
+
+@app.route("/api/indeed/jobs")
+def indeed_jobs():
+    status_filter = request.args.get("status", "")
+    search        = request.args.get("search", "").strip()
+    min_score     = request.args.get("min_score", 0, type=int)
+
+    query  = "SELECT * FROM jobs WHERE source='indeed' AND (discarded=0 OR discarded IS NULL)"
+    params = []
+
+    if status_filter:
+        query += " AND COALESCE(status,'Not Applied') = ?"
+        params.append(status_filter)
+    if search:
+        query += " AND (title LIKE ? OR company LIKE ? OR location LIKE ?)"
+        params += [f"%{search}%"] * 3
+    if min_score > 0:
+        query += " AND score >= ?"
+        params.append(min_score)
+
+    query += " ORDER BY COALESCE(score,-1) DESC, date_posted DESC"
+
+    with _db() as conn:
+        rows = conn.execute(query, params).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/indeed/stats")
+def indeed_stats():
+    with _db() as conn:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM jobs WHERE source='indeed' AND (discarded=0 OR discarded IS NULL)"
+        ).fetchone()[0]
+        scored = conn.execute(
+            "SELECT COUNT(*) FROM jobs WHERE source='indeed' AND scored=1 AND (discarded=0 OR discarded IS NULL)"
+        ).fetchone()[0]
+        applied_total = conn.execute(
+            "SELECT COUNT(*) FROM jobs WHERE source='indeed' AND status='Applied'"
+        ).fetchone()[0]
+        status_rows = conn.execute(
+            "SELECT COALESCE(status,'Not Applied'), COUNT(*) FROM jobs "
+            "WHERE source='indeed' AND (discarded=0 OR discarded IS NULL) GROUP BY status"
+        ).fetchall()
+        applies_today = _get_setting(conn, "indeed_applies_today", "0")
+        last_run      = _get_setting(conn, "indeed_last_run", "")
+
+    return jsonify({
+        "total":          total,
+        "scored":         scored,
+        "applied_total":  applied_total,
+        "applies_today":  int(applies_today),
+        "last_run":       last_run,
+        "by_status":      dict(status_rows),
+    })
+
+
+@app.route("/api/indeed/settings", methods=["GET"])
+def indeed_settings_get():
+    keys = [
+        "indeed_scheduler_enabled",
+        "indeed_auto_apply_threshold",
+        "indeed_daily_cap",
+        "indeed_schedule_time",
+        "indeed_applies_today",
+        "indeed_last_run",
+    ]
+    with _db() as conn:
+        result = {k: _get_setting(conn, k, "") for k in keys}
+    return jsonify(result)
+
+
+@app.route("/api/indeed/settings", methods=["POST"])
+def indeed_settings_post():
+    data    = request.json or {}
+    allowed = {"indeed_auto_apply_threshold", "indeed_daily_cap", "indeed_schedule_time"}
+    with _db() as conn:
+        for k, v in data.items():
+            if k in allowed:
+                _set_setting(conn, k, str(v))
+        new_time = data.get("indeed_schedule_time")
+
+    if new_time and "reschedule_indeed" in app.config:
+        app.config["reschedule_indeed"](new_time)
+
+    return jsonify({"ok": True})
+
+
+@app.route("/api/indeed/toggle", methods=["POST"])
+def indeed_toggle():
+    with _db() as conn:
+        current = _get_setting(conn, "indeed_scheduler_enabled", "false")
+        new_val = "false" if current == "true" else "true"
+        _set_setting(conn, "indeed_scheduler_enabled", new_val)
+
+    if "reschedule_indeed" in app.config:
+        app.config["reschedule_indeed"]()
+
+    return jsonify({"enabled": new_val == "true"})
+
+
+@app.route("/api/indeed/crawl", methods=["POST"])
+def indeed_crawl():
+    if _tasks.get("indeed_crawl", {}).get("running"):
+        return jsonify({"error": "Indeed crawler already running"}), 400
+
+    def _do_crawl():
+        import sqlite3 as _sq
+        from crawler.seek_crawler import crawl_indeed, init_db, _crawl_config
+        from datetime import date as _date
+
+        conn = _sq.connect(DB_PATH)
+        init_db(conn)
+        cfg = _crawl_config()
+        ind_new, ind_dupes = crawl_indeed(conn, _date.today().isoformat(), cfg["salary_ceiling"])
+        conn.close()
+        return {"new": ind_new, "dupes": ind_dupes}
+
+    _bg("indeed_crawl", _do_crawl)
+    return jsonify({"task_id": "indeed_crawl"})
+
+
+@app.route("/api/indeed/run", methods=["POST"])
+def indeed_run():
+    if _tasks.get("indeed", {}).get("running"):
+        return jsonify({"error": "Indeed pipeline already running"}), 400
+    from bot.indeed_pipeline import run_indeed_pipeline
+    _bg("indeed", run_indeed_pipeline)
+    return jsonify({"task_id": "indeed"})
+
+
+@app.route("/api/indeed/apply", methods=["POST"])
+def indeed_apply_only():
+    if _tasks.get("indeed", {}).get("running"):
+        return jsonify({"error": "Indeed pipeline already running"}), 400
+    from bot.indeed_pipeline import run_indeed_apply_only
+    _bg("indeed", run_indeed_apply_only)
+    return jsonify({"task_id": "indeed"})
+
+
+@app.route("/api/task/indeed")
+def indeed_task_status():
+    task = _tasks.get("indeed", {"running": False, "status": "Not started", "result": None})
+    return jsonify(task)
 
 
 if __name__ == "__main__":

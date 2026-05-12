@@ -23,46 +23,73 @@
       "max": 85000,
       "currency": "AUD"
     },
-    "work_type": ["full-time", "part-time", "contract"],
-    "work_environment": ["onsite", "hybrid", "remote"],
-    "remote": true,
-    "locations": ["Sydney, NSW"],
+    "work_type": ["full-time", "part-time", "contract", "casual", "internship"],
+    "work_environment": ["onsite", "hybrid"],
+    "remote": false,
+    "locations": ["Sydney, NSW", "Melbourne, VIC"],
     "has_car": true,
-    "driving_license": true
+    "industries_excluded": [],
+    "goal": "Describe what you are looking for in a role.",
+    "interest": "What kind of work interests you most?"
   },
 
   "target_roles": [
     "Junior Developer",
     "Graduate Software Engineer",
-    "IT Support Analyst"
+    "Junior Software Engineer",
+    "Junior .NET Developer",
+    "Junior Product Manager"
   ],
 
-  "summary": "A brief professional summary about yourself — 2-3 sentences. Mention your background, key skills, and what you are looking for.",
-
   "skills": {
-    "Languages": "Python, JavaScript, TypeScript",
-    "Frameworks": "React, Node.js, Flask",
-    "Databases": "PostgreSQL, SQLite, MongoDB",
-    "Cloud & DevOps": "AWS, Docker, GitHub Actions",
-    "Tools": "Git, VS Code, Jira"
+    "honest_assessment": "Write an honest 2-3 sentence assessment of your skill level. This is used by Claude to write accurate resumes — be truthful about what you can and cannot do.",
+    "programming": {
+      "can_read_and_understand": ["Python", "JavaScript", "SQL"],
+      "wrote_professionally": ["Python", "JavaScript"],
+      "can_discuss_confidently": ["REST APIs", "Git", "OOP concepts"],
+      "ai_assisted": ["React", "Node.js"]
+    },
+    "frameworks_and_tools": {
+      "professional": ["Flask", "Git/GitHub", "VS Code", "Agile/SCRUM"],
+      "academic_or_project": ["React", "Docker", "AWS"]
+    },
+    "other": ["REST API Design", "Unit Testing", "Stakeholder Communication", "Technical Documentation"]
   },
 
   "work_experience": [
     {
       "title": "Software Developer",
-      "company": "Example Company",
-      "period": "Jan 2024 - Present",
-      "framing": "Full-time role focused on building internal tools and APIs.",
+      "resume_label": "Full-Time",
       "bullet_count": 4,
-      "experience_category": "relevant"
+      "experience_category": "relevant",
+      "company": "Example Company",
+      "location": "Sydney, NSW",
+      "period": "Jan 2024 – Present",
+      "type": "Full-time",
+      "show_on_resume": true,
+      "framing": "Brief description of what you did at this role and how to frame it on a resume.",
+      "key_points": [
+        "Key achievement or responsibility 1",
+        "Key achievement or responsibility 2",
+        "Key achievement or responsibility 3",
+        "Key achievement or responsibility 4"
+      ]
     },
     {
       "title": "Retail Assistant",
-      "company": "Some Retail Store",
-      "period": "Jan 2022 - Dec 2023",
-      "framing": "Customer-facing role developing communication and problem-solving skills.",
+      "resume_label": "Part-Time",
       "bullet_count": 2,
-      "experience_category": "other"
+      "experience_category": "other",
+      "company": "Some Store",
+      "location": "Sydney, NSW",
+      "period": "Jan 2022 – Dec 2023",
+      "type": "Part-time",
+      "show_on_resume": true,
+      "framing": "Customer-facing role. Frame around communication and reliability.",
+      "key_points": [
+        "Served customers and handled transactions",
+        "Worked reliably in a fast-paced team environment"
+      ]
     }
   ],
 
@@ -70,18 +97,23 @@
     {
       "degree": "Master of Computer Science",
       "institution": "University of Example",
-      "period": "Feb 2023 - Nov 2024",
+      "period": "Feb 2023 – Nov 2024",
       "education_category": "main",
+      "status": "Completed",
+      "grade": "GPA: 3.8/4.0",
+      "key_subjects": ["Algorithms", "Machine Learning", "Distributed Systems"],
       "resume_bullets": [
         "GPA: 3.8/4.0",
-        "Relevant coursework: Algorithms, Machine Learning, Distributed Systems"
+        "Key Subjects: Algorithms, Machine Learning, Distributed Systems"
       ]
     },
     {
       "degree": "Bachelor of Information Technology",
       "institution": "University of Example",
-      "period": "Feb 2019 - Nov 2022",
+      "period": "Feb 2019 – Nov 2022",
       "education_category": "main",
+      "status": "Completed",
+      "grade": "GPA: 3.5/4.0",
       "resume_bullets": [
         "Major in Software Engineering"
       ]
@@ -91,35 +123,89 @@
       "institution": "Amazon Web Services",
       "period": "2024",
       "education_category": "additional",
-      "resume_bullets": []
+      "status": "Completed",
+      "resume_bullets": [
+        "AWS-accredited cloud architecture certification."
+      ]
     }
   ],
 
   "projects": [
     {
-      "type": "personal",
-      "name": "My SaaS App",
+      "name": "MySaaSApp",
       "display_name": "My SaaS App",
+      "type": "Personal Product",
       "period": "2024",
-      "description": "A web application that does X, Y, Z.",
-      "tech_stack": ["React", "Node.js", "PostgreSQL"],
       "url": "https://mysaasapp.com",
-      "include_by_default": true,
+      "status": "Live",
+      "description": "A web application that solves X problem for Y users.",
       "fixed_bullets": [
         "Live at https://mysaasapp.com"
-      ]
+      ],
+      "highlights": [
+        "Built full-stack using React and Node.js",
+        "Integrated Stripe for payments",
+        "Deployed on AWS with CI/CD pipeline"
+      ],
+      "stack": ["React", "Node.js", "PostgreSQL", "AWS"],
+      "include_by_default": true,
+      "note": "Include for product/SaaS roles."
     },
     {
-      "type": "academic",
-      "name": "Final Year Project",
-      "context": "Master of Computer Science — Capstone",
+      "name": "CapstoneProject",
+      "display_name": "Capstone ML Project",
+      "type": "Academic Capstone",
       "period": "2024",
-      "description": "Built a machine learning model to predict X.",
-      "tech_stack": ["Python", "TensorFlow", "Flask"],
+      "status": "Completed",
+      "description": "Machine learning model to predict X using Y dataset.",
+      "fixed_bullets": [],
+      "highlights": [
+        "Trained and evaluated multiple ML models",
+        "Achieved 92% accuracy on test set",
+        "Deployed as REST API using Flask"
+      ],
+      "stack": ["Python", "TensorFlow", "Flask"],
       "include_by_default": true,
-      "fixed_bullets": []
+      "note": "Include for ML or data roles."
     }
   ],
 
-  "affiliations": []
+  "professional_affiliations": [
+    {
+      "name": "Australian Computer Society (ACS)",
+      "type": "Associate Member",
+      "member_id": "0000000"
+    }
+  ],
+
+  "soft_skills": [
+    "Stakeholder communication",
+    "Cross-functional collaboration",
+    "Problem solving under pressure",
+    "Self-directed learning",
+    "Working in Agile/SCRUM teams"
+  ],
+
+  "awards": [
+    {
+      "name": "Award Name",
+      "year": 2023,
+      "reason": "Brief reason for the award"
+    }
+  ],
+
+  "strengths_for_interviews": [
+    "One thing you can speak to confidently in interviews",
+    "A project or achievement you can explain end-to-end",
+    "A soft skill backed by a real example"
+  ],
+
+  "gaps_to_be_aware_of": [
+    "Any skill gap or concern a recruiter might raise — be honest, Claude uses this to avoid overclaiming on your resume."
+  ],
+
+  "deal_breakers": [
+    "Roles requiring security clearance",
+    "Fully remote only roles"
+  ]
 }

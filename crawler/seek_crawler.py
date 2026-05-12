@@ -10,8 +10,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 APIFY_API_KEY = os.getenv("APIFY_API_KEY")
-ACTOR_ID = "websift~seek-job-scraper"
-APIFY_BASE = "https://api.apify.com/v2"
+ACTOR_ID      = "websift~seek-job-scraper"
+LI_ACTOR_ID   = "bebity/linkedin-jobs-scraper"
+IND_ACTOR_ID  = "misceres~indeed-scraper"
+APIFY_BASE  = "https://api.apify.com/v2"
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "jobs.db")
 ME_PATH  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "me.json")
 RUN_TIMEOUT = 420
@@ -51,6 +53,45 @@ def _crawl_config() -> dict:
     }
 
 # ─── Exclusion filters ────────────────────────────────────────────────────────
+
+# Title substrings that trigger an immediate auto-discard on insert.
+# These are roles that will never be relevant — keeping them in the DB
+# (discarded=1) prevents the crawler from re-inserting them on future runs.
+AUTO_DISCARD_PATTERNS = [
+    "it support", "help desk", "helpdesk", "service desk",
+    "desktop support", "technical support", "tech support",
+    "customer service", "customer support",
+    "call centre", "call center", "contact centre",
+    "msp engineer", "msp support",
+    "level 1 / 2", "level 1/2",
+    "l1 msp", "l2 msp", "l3 msp",
+    "it technician", "it asset",
+    "field technician",
+    "network engineer", "network security", "network support",
+    "network installation", "networking and field",
+    "systems administrator", "system administrator",
+    "windows administrator", "cloud administrator",
+    "servicenow administrator", "infrastructure system",
+    "end user compute",
+    "contract administrator", "contracts administrator",
+    "construction administrator", "project administrator",
+    "projects administrator", "office administrator",
+    "operations administrator", "service administrator",
+    "junior erp administrator",
+    "catering", "kitchen hand", "hospitality",
+    "retail project", "brand & growth leader",
+    "telco helpdesk", "pos technical",
+    "trade counter sales", "sales representative",
+    "presales engineer",
+]
+
+def _is_auto_discard(title: str) -> bool:
+    """Return True if the job title matches any auto-discard pattern."""
+    if not title:
+        return False
+    t = title.lower()
+    return any(p in t for p in AUTO_DISCARD_PATTERNS)
+
 
 # Title keywords that indicate the role is too senior or wrong domain
 EXCLUDE_TITLE_WORDS = [
@@ -126,9 +167,14 @@ def init_db(conn):
             date_crawled  TEXT,
             scored        INTEGER NOT NULL DEFAULT 0,
             score         INTEGER,
-            discarded     INTEGER NOT NULL DEFAULT 0
+            discarded     INTEGER NOT NULL DEFAULT 0,
+            source        TEXT DEFAULT 'seek'
         )
     """)
+    # migrate existing DBs that pre-date the source column
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}
+    if "source" not in existing:
+        conn.execute("ALTER TABLE jobs ADD COLUMN source TEXT DEFAULT 'seek'")
     conn.commit()
 
 
@@ -212,6 +258,259 @@ def extract_job(item):
     }
 
 
+# ─── LinkedIn helpers ─────────────────────────────────────────────────────────
+
+def _linkedin_search_url(keyword: str, city: str, state: str) -> str:
+    import urllib.parse
+    params = {
+        "keywords": keyword,
+        "location": f"{city}, {state}, Australia",
+        "f_TPR":    "r604800",   # past week
+        "sortBy":   "DD",        # most recent first
+    }
+    return "https://www.linkedin.com/jobs/search/?" + urllib.parse.urlencode(params)
+
+
+def start_linkedin_run(keyword: str, city: str, state: str):
+    payload = {
+        "searchUrl": _linkedin_search_url(keyword, city, state),
+        "count": 25,
+    }
+    r = requests.post(
+        f"{APIFY_BASE}/acts/{LI_ACTOR_ID}/runs",
+        params={"token": APIFY_API_KEY},
+        json=payload,
+        timeout=30,
+    )
+    r.raise_for_status()
+    data = r.json()["data"]
+    return data["id"], data["defaultDatasetId"]
+
+
+def extract_linkedin_job(item: dict) -> dict:
+    job_id = str(item.get("id") or "").strip()
+    return {
+        "job_id":      f"li_{job_id}" if job_id else None,
+        "title":       item.get("title"),
+        "company":     item.get("companyName") or item.get("company"),
+        "location":    item.get("location"),
+        "salary":      item.get("salary") or None,
+        "date_posted": item.get("postedAt") or item.get("publishedAt"),
+        "job_url":     item.get("jobUrl") or item.get("url"),
+        "description": strip_html(item.get("description") or item.get("descriptionHtml") or ""),
+    }
+
+
+def crawl_linkedin(conn, today: str, salary_ceiling: int) -> tuple[int, int]:
+    """Crawl LinkedIn jobs. Returns (total_new, total_dupes)."""
+    cfg = _crawl_config()
+    search_terms = cfg["search_terms"]
+    locations    = cfg["locations"]
+
+    total_new   = 0
+    total_dupes = 0
+
+    for term in search_terms:
+        for city, state in locations:
+            print(f"\n[LI] Searching: {term} in {city}, {state}")
+            try:
+                run_id, dataset_id = start_linkedin_run(term, city, state)
+                print(f"    Run started ({run_id}) — polling…")
+                wait_for_run(run_id)
+
+                items = fetch_items(dataset_id)
+                print(f"    {len(items)} jobs returned from Apify")
+
+                new_count = 0; dupe_count = 0; excl = 0
+
+                for item in items:
+                    job = extract_linkedin_job(item)
+                    if not job["job_id"]:
+                        continue
+
+                    excluded, _ = _is_excluded_title(job["title"] or "")
+                    if excluded:
+                        excl += 1
+                        continue
+
+                    if _salary_too_high(job["salary"] or "", salary_ceiling):
+                        continue
+
+                    exists = conn.execute(
+                        "SELECT 1 FROM jobs WHERE job_id = ?", (job["job_id"],)
+                    ).fetchone()
+                    if exists:
+                        dupe_count += 1; total_dupes += 1
+                        continue
+
+                    seek_dupe = conn.execute(
+                        "SELECT 1 FROM jobs WHERE source='seek' AND company=? AND title=?",
+                        (job["company"], job["title"]),
+                    ).fetchone()
+                    if seek_dupe:
+                        dupe_count += 1; total_dupes += 1
+                        continue
+
+                    auto_discard = _is_auto_discard(job["title"])
+                    conn.execute(
+                        """INSERT INTO jobs
+                           (job_id, title, company, location, salary, date_posted,
+                            job_url, description, date_crawled, scored, score, discarded, source)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, 'linkedin')""",
+                        (
+                            job["job_id"], job["title"], job["company"],
+                            job["location"], job["salary"], job["date_posted"],
+                            job["job_url"], job["description"], today,
+                            1 if auto_discard else 0,
+                        ),
+                    )
+                    if not auto_discard:
+                        new_count += 1; total_new += 1
+
+                conn.commit()
+                parts = [f"Inserted {new_count} new", f"Dupes {dupe_count}"]
+                if excl: parts.append(f"Excl-title {excl}")
+                print(f"    {' | '.join(parts)}")
+
+            except Exception as exc:
+                print(f"    ERROR for '{term}' in {city}, {state}: {exc}")
+
+    return total_new, total_dupes
+
+
+# ─── Indeed helpers ───────────────────────────────────────────────────────────
+
+def start_indeed_run(keyword: str, location: str) -> tuple[str, str]:
+    payload = {
+        "position": keyword,
+        "location": location,
+        "country": "AU",
+        "maxItems": 30,
+        "datePosted": "last7days",
+    }
+    r = requests.post(
+        f"{APIFY_BASE}/acts/{IND_ACTOR_ID}/runs",
+        params={"token": APIFY_API_KEY},
+        json=payload,
+        timeout=30,
+    )
+    r.raise_for_status()
+    data = r.json()["data"]
+    return data["id"], data["defaultDatasetId"]
+
+
+AU_STATES = {"nsw", "vic", "qld", "wa", "sa", "tas", "act", "nt",
+             "sydney", "melbourne", "brisbane", "perth", "adelaide",
+             "canberra", "hobart", "darwin", "australia"}
+
+def _is_australian_location(location: str) -> bool:
+    if not location:
+        return True  # no location info — don't filter out
+    loc = location.lower()
+    return any(s in loc for s in AU_STATES)
+
+
+def extract_indeed_job(item: dict) -> dict:
+    job_id = str(item.get("jobId") or item.get("id") or "").strip()
+    salary = item.get("salary") or None
+    if salary == "N/A":
+        salary = None
+    raw_desc = item.get("description") or item.get("jobDescription") or ""
+    return {
+        "job_id":      f"ind_{job_id}" if job_id else None,
+        "title":       item.get("title") or item.get("positionName"),
+        "company":     item.get("company") or item.get("companyName"),
+        "location":    item.get("location") or item.get("jobLocation"),
+        "salary":      salary,
+        "date_posted": item.get("date") or item.get("postedAt") or item.get("datePosted"),
+        "job_url":     item.get("url") or item.get("jobUrl") or item.get("externalApplyLink"),
+        "description": strip_html(raw_desc),
+        "easy_apply":  bool(item.get("easyApply") or item.get("indeedApply")),
+    }
+
+
+def crawl_indeed(conn, today: str, salary_ceiling: int) -> tuple[int, int]:
+    """Crawl Indeed jobs. Returns (total_new, total_dupes)."""
+    cfg = _crawl_config()
+    search_terms = cfg["search_terms"]
+    locations    = cfg["locations"]
+
+    total_new   = 0
+    total_dupes = 0
+
+    for term in search_terms:
+        for city, state in locations:
+            location_str = f"{city}, {state}, Australia"
+            print(f"\n[IND] Searching: {term} in {location_str}")
+            try:
+                run_id, dataset_id = start_indeed_run(term, location_str)
+                print(f"    Run started ({run_id}) — polling…")
+                wait_for_run(run_id)
+
+                items = fetch_items(dataset_id)
+                print(f"    {len(items)} jobs returned from Apify")
+
+                new_count = 0; dupe_count = 0; excl = 0
+
+                for item in items:
+                    job = extract_indeed_job(item)
+                    if not job["job_id"]:
+                        continue
+
+                    if not _is_australian_location(job["location"]):
+                        excl += 1
+                        continue
+
+                    excluded, _ = _is_excluded_title(job["title"] or "")
+                    if excluded:
+                        excl += 1
+                        continue
+
+                    if _salary_too_high(job["salary"] or "", salary_ceiling):
+                        continue
+
+                    exists = conn.execute(
+                        "SELECT 1 FROM jobs WHERE job_id = ?", (job["job_id"],)
+                    ).fetchone()
+                    if exists:
+                        dupe_count += 1; total_dupes += 1
+                        continue
+
+                    cross_dupe = conn.execute(
+                        "SELECT 1 FROM jobs WHERE source IN ('seek','linkedin') AND company=? AND title=?",
+                        (job["company"], job["title"]),
+                    ).fetchone()
+                    if cross_dupe:
+                        dupe_count += 1; total_dupes += 1
+                        continue
+
+                    auto_discard = _is_auto_discard(job["title"])
+                    conn.execute(
+                        """INSERT INTO jobs
+                           (job_id, title, company, location, salary, date_posted,
+                            job_url, description, date_crawled, scored, score, discarded, source)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, 'indeed')""",
+                        (
+                            job["job_id"], job["title"], job["company"],
+                            job["location"], job["salary"], job["date_posted"],
+                            job["job_url"], job["description"], today,
+                            1 if auto_discard else 0,
+                        ),
+                    )
+                    if not auto_discard:
+                        new_count += 1; total_new += 1
+
+                conn.commit()
+                parts = [f"Inserted {new_count} new", f"Dupes {dupe_count}"]
+                if excl: parts.append(f"Excl-title {excl}")
+                print(f"    {' | '.join(parts)}")
+
+            except Exception as exc:
+                print(f"    ERROR for '{term}' in {location_str}: {exc}")
+
+    return total_new, total_dupes
+
+
 # ─── Main crawl ───────────────────────────────────────────────────────────────
 
 def crawl():
@@ -289,19 +588,22 @@ def crawl():
                         total_dupes += 1
                         continue
 
+                    auto_discard = _is_auto_discard(job["title"])
                     conn.execute(
                         """INSERT INTO jobs
                            (job_id, title, company, location, salary, date_posted,
-                            job_url, description, date_crawled, scored, score, discarded)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, 0)""",
+                            job_url, description, date_crawled, scored, score, discarded, source)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, 'seek')""",
                         (
                             job["job_id"], job["title"], job["company"],
                             job["location"], job["salary"], job["date_posted"],
                             job["job_url"], job["description"], today,
+                            1 if auto_discard else 0,
                         ),
                     )
-                    new_count += 1
-                    total_new += 1
+                    if not auto_discard:
+                        new_count += 1
+                        total_new += 1
 
                 conn.commit()
                 parts = [f"Inserted {new_count} new", f"Dupes {dupe_count}"]
@@ -312,21 +614,48 @@ def crawl():
             except Exception as exc:
                 print(f"    ERROR for '{term}' in {location}: {exc}")
 
+    # ── LinkedIn ──────────────────────────────────────────────────────────────
+    print(f"\n{'=' * 55}")
+    print(" SEEK DONE — starting LinkedIn crawl…")
+    print(f"{'=' * 55}")
+    li_new = li_dupes = 0
+    try:
+        li_new, li_dupes = crawl_linkedin(conn, today, salary_ceiling)
+    except Exception as exc:
+        print(f"[LI] LinkedIn crawl failed: {exc}")
+
+    # ── Indeed ────────────────────────────────────────────────────────────────
+    print(f"\n{'=' * 55}")
+    print(" LINKEDIN DONE — starting Indeed crawl…")
+    print(f"{'=' * 55}")
+    ind_new = ind_dupes = 0
+    try:
+        ind_new, ind_dupes = crawl_indeed(conn, today, salary_ceiling)
+    except Exception as exc:
+        print(f"[IND] Indeed crawl failed: {exc}")
+
     conn.close()
 
     print(f"""
 {'=' * 55}
  CRAWL COMPLETE
 {'=' * 55}
+ ── Seek ──────────────────────────────────────────
  Total returned from Apify : {total_found}
  New jobs inserted         : {total_new}
  Duplicates skipped        : {total_dupes}
- Excluded by title         : {total_excl_title}  (Senior/Lead/Manager/wrong domain)
+ Excluded by title         : {total_excl_title}
  Excluded by salary >${salary_ceiling:,} : {total_excl_salary}
+ ── LinkedIn ──────────────────────────────────────
+ New jobs inserted         : {li_new}
+ Duplicates skipped        : {li_dupes}
+ ── Indeed ────────────────────────────────────────
+ New jobs inserted         : {ind_new}
+ Duplicates skipped        : {ind_dupes}
 {'=' * 55}""")
 
     if excl_title_examples:
-        print(" Sample excluded titles:")
+        print(" Sample Seek excluded titles:")
         for ex in excl_title_examples:
             print(f"   • {ex}")
         print(f"{'=' * 55}\n")

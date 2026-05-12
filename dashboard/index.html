@@ -237,6 +237,17 @@ tr:hover td { background: #fafbff; }
   padding: 1px 5px; border-radius: 4px; margin-left: 4px;
 }
 
+/* Source badges */
+.src-badge {
+  display: inline-flex; align-items: center;
+  font-size: 9px; font-weight: 700; letter-spacing: .3px;
+  padding: 1px 4px; border-radius: 3px; margin-left: 4px;
+  vertical-align: middle;
+}
+.src-seek     { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+.src-linkedin { background: #e8f0fe; color: #0a66c2; border: 1px solid #93c5fd; }
+.src-manual   { background: var(--purple-bg); color: var(--purple); border: 1px solid #c4b5fd; }
+
 /* Reason cell */
 .reason-cell { font-size: 12px; color: var(--muted); cursor: help; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -353,6 +364,25 @@ tr:hover td { background: #fafbff; }
 }
 .field input:focus, .field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
 .field textarea { resize: vertical; min-height: 130px; line-height: 1.5; }
+
+/* ── Page nav tabs ───────────────────────────────────────────────────────── */
+.page-nav {
+  flex-shrink: 0;
+  display: flex; gap: 0; padding: 0 24px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+.page-tab {
+  padding: 11px 18px; background: transparent; border: none;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;
+  transition: all .15s; white-space: nowrap;
+}
+.page-tab:hover { color: var(--text); background: var(--surface2); }
+.page-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: transparent; }
+
+/* Indeed toggle button states */
+#ind-toggle-btn.enabled  { background: var(--green-bg); color: var(--green); border: 1px solid #86efac; }
+#ind-toggle-btn.disabled { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
 </style>
 </head>
 <body>
@@ -372,6 +402,15 @@ tr:hover td { background: #fafbff; }
     <button class="btn btn-primary" id="btn-crawl" onclick="startCrawl()">🔍 Crawl Jobs</button>
   </div>
 </header>
+
+<!-- ── Page nav ────────────────────────────────────────────────────────────── -->
+<div class="page-nav">
+  <button class="page-tab active" id="nav-jobs"   onclick="switchPage('jobs')">📋 Jobs</button>
+  <button class="page-tab"        id="nav-indeed" onclick="switchPage('indeed')">🤖 Indeed Auto-Apply</button>
+</div>
+
+<!-- ═══════════════════ PAGE: JOBS ═══════════════════════════════════════════ -->
+<div id="page-jobs" style="display:contents">
 
 <!-- ── Stats bar ───────────────────────────────────────────────────────────── -->
 <div class="stats-bar">
@@ -448,6 +487,112 @@ tr:hover td { background: #fafbff; }
     </table>
   </div>
 </div>
+
+</div><!-- /page-jobs -->
+
+<!-- ═══════════════════ PAGE: INDEED ═════════════════════════════════════════ -->
+<div id="page-indeed" style="display:none;height:calc(100vh - 96px);overflow-y:auto;padding:20px 24px 40px;background:var(--bg)">
+
+  <!-- Coming soon banner -->
+  <div style="background:var(--amber-bg);border:1px solid #fcd34d;border-radius:var(--radius);padding:14px 18px;max-width:720px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+    <span style="font-size:18px">🚧</span>
+    <div>
+      <div style="font-weight:700;font-size:13px;color:var(--amber)">Indeed Auto-Apply — Coming Soon</div>
+      <div style="font-size:12px;color:var(--amber);margin-top:2px">The crawler and job tracking below work fine. The automated apply bot is under development and currently disabled.</div>
+    </div>
+  </div>
+
+  <!-- Scheduler card -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow-sm);max-width:720px;margin-bottom:20px;opacity:0.5;pointer-events:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:15px;font-weight:700">Auto-Apply Scheduler</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Runs weekdays at the configured time. Crawls Indeed, scores, generates docs, and applies.</div>
+      </div>
+      <!-- ON/OFF toggle -->
+      <button class="btn btn-sm" id="ind-toggle-btn" onclick="indeedToggle()" style="min-width:72px">
+        <span id="ind-toggle-label">OFF</span>
+      </button>
+    </div>
+
+    <!-- Status row -->
+    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px;padding:12px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Last Run</div><div id="ind-last-run" style="font-size:13px;font-weight:600;margin-top:2px">—</div></div>
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Applies Today</div><div id="ind-applies-today" style="font-size:13px;font-weight:600;margin-top:2px;color:var(--blue)">0 / 20</div></div>
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Total Applied</div><div id="ind-applied-total" style="font-size:13px;font-weight:600;margin-top:2px;color:var(--green)">—</div></div>
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Indeed Jobs</div><div id="ind-total" style="font-size:13px;font-weight:600;margin-top:2px">—</div></div>
+    </div>
+
+    <!-- Settings row -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Min Score to Apply</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="range" id="ind-threshold" min="1" max="10" value="7" step="1"
+                 style="width:100px;accent-color:var(--accent)"
+                 oninput="document.getElementById('ind-threshold-val').textContent=this.value">
+          <strong id="ind-threshold-val" style="min-width:16px">7</strong>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Daily Cap</label>
+        <input type="number" id="ind-daily-cap" value="20" min="1" max="100"
+               style="width:70px;padding:6px 9px;border:1px solid var(--border);border-radius:7px;font-size:13px;color:var(--text);background:var(--surface)">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Run Time</label>
+        <input type="time" id="ind-run-time" value="08:00"
+               style="padding:6px 9px;border:1px solid var(--border);border-radius:7px;font-size:13px;color:var(--text);background:var(--surface)">
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="indeedSaveSettings()">Save Settings</button>
+    </div>
+
+    <!-- Action buttons -->
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary btn-sm" id="ind-crawl-btn"     onclick="indeedCrawl()">🔍 Crawl Indeed</button>
+      <button class="btn btn-secondary btn-sm" id="ind-apply-btn"     onclick="indeedApplyOnly()">⚡ Apply Only</button>
+      <button class="btn btn-primary btn-sm"   id="ind-run-btn"       onclick="indeedRunNow()">▶ Run Now (Full Pipeline)</button>
+      <button class="btn btn-ghost btn-sm"                            onclick="loadIndeedTab()">↺ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Indeed jobs table -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--surface2)">
+      <strong style="font-size:13px">Indeed Jobs</strong>
+      <select class="ctl-select" id="ind-status-filter" onchange="loadIndeedJobs()" style="font-size:12px;padding:5px 8px">
+        <option value="">All statuses</option>
+        <option>Not Applied</option>
+        <option>Applied</option>
+        <option>Skipped</option>
+      </select>
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)">
+        Min score
+        <input type="range" id="ind-min-score" min="0" max="10" value="0" step="1"
+               style="width:80px;accent-color:var(--accent)" oninput="document.getElementById('ind-min-score-val').textContent=this.value;loadIndeedJobs()">
+        <strong id="ind-min-score-val" style="min-width:14px;color:var(--text)">0</strong>
+      </div>
+      <span id="ind-job-count" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:700px">
+        <thead>
+          <tr>
+            <th style="background:var(--surface2);border-bottom:2px solid var(--border);padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Title</th>
+            <th style="background:var(--surface2);border-bottom:2px solid var(--border);padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Company</th>
+            <th style="background:var(--surface2);border-bottom:2px solid var(--border);padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Location</th>
+            <th style="background:var(--surface2);border-bottom:2px solid var(--border);padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Score</th>
+            <th style="background:var(--surface2);border-bottom:2px solid var(--border);padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Status</th>
+            <th style="background:var(--surface2);border-bottom:2px solid var(--border);padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Applied At</th>
+          </tr>
+        </thead>
+        <tbody id="ind-tbody">
+          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted);font-size:13px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div><!-- /page-indeed -->
 
 <!-- ── Progress Modal ─────────────────────────────────────────────────────── -->
 <div class="backdrop" id="prog-modal">
@@ -618,6 +763,170 @@ let allJobs = [], filtered = [];
 let sortCol = 'score', sortDir = -1;
 let activeJobId = null;
 
+// ── Page switching ────────────────────────────────────────────────────────────
+function switchPage(page) {
+  const displayMap = { jobs: 'contents', indeed: 'block' };
+  const pages = ['jobs', 'indeed'];
+  pages.forEach(p => {
+    const el = document.getElementById('page-' + p);
+    const nav = document.getElementById('nav-' + p);
+    if (!el || !nav) return;
+    if (p === page) {
+      el.style.display = displayMap[p] || '';
+      nav.classList.add('active');
+    } else {
+      el.style.display = 'none';
+      nav.classList.remove('active');
+    }
+  });
+  if (page === 'indeed') loadIndeedTab();
+}
+
+// ── Indeed tab ────────────────────────────────────────────────────────────────
+async function loadIndeedTab() {
+  await Promise.all([loadIndeedSettings(), loadIndeedStats(), loadIndeedJobs()]);
+}
+
+async function loadIndeedSettings() {
+  try {
+    const r = await fetch('/api/indeed/settings');
+    const d = await r.json();
+    const enabled = d.indeed_scheduler_enabled === 'true';
+    _setToggleUI(enabled);
+    document.getElementById('ind-threshold').value = d.indeed_auto_apply_threshold || 7;
+    document.getElementById('ind-threshold-val').textContent = d.indeed_auto_apply_threshold || 7;
+    document.getElementById('ind-daily-cap').value = d.indeed_daily_cap || 20;
+    document.getElementById('ind-run-time').value = d.indeed_schedule_time || '08:00';
+  } catch(e) { console.error(e); }
+}
+
+async function loadIndeedStats() {
+  try {
+    const r = await fetch('/api/indeed/stats');
+    const d = await r.json();
+    document.getElementById('ind-total').textContent = d.total ?? '—';
+    document.getElementById('ind-applied-total').textContent = d.applied_total ?? '—';
+    const cap = document.getElementById('ind-daily-cap').value || 20;
+    document.getElementById('ind-applies-today').textContent = `${d.applies_today ?? 0} / ${cap}`;
+    document.getElementById('ind-last-run').textContent = d.last_run
+      ? new Date(d.last_run).toLocaleString() : 'Never';
+  } catch(e) { console.error(e); }
+}
+
+async function loadIndeedJobs() {
+  const tbody = document.getElementById('ind-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">Loading…</td></tr>';
+  try {
+    const status   = document.getElementById('ind-status-filter').value;
+    const minScore = document.getElementById('ind-min-score').value || 0;
+    const params   = new URLSearchParams();
+    if (status)        params.set('status', status);
+    if (minScore > 0)  params.set('min_score', minScore);
+    const url = '/api/indeed/jobs' + (params.toString() ? '?' + params.toString() : '');
+    const r = await fetch(url);
+    const jobs = await r.json();
+    document.getElementById('ind-job-count').textContent = jobs.length + ' jobs';
+    if (!jobs.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">No Indeed jobs yet. Run a crawl first.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = jobs.map(j => {
+      const score = j.score != null
+        ? `<span style="font-weight:700;color:${j.score>=7?'var(--green)':j.score>=4?'var(--amber)':'var(--red)'}">${j.score}</span>`
+        : '<span style="color:var(--muted2)">—</span>';
+      const status = j.status || 'Not Applied';
+      const statusColor = status === 'Applied' ? 'var(--green)' : status === 'Skipped' ? 'var(--muted)' : 'var(--text2)';
+      const appliedAt = j.applied_at ? new Date(j.applied_at).toLocaleDateString() : '—';
+      const titleLink = j.job_url
+        ? `<a href="${j.job_url}" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:500">${j.title||'—'}</a>`
+        : (j.title || '—');
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:10px 12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${titleLink}</td>
+        <td style="padding:10px 12px;color:var(--text2)">${j.company||'—'}</td>
+        <td style="padding:10px 12px;color:var(--muted);font-size:12px">${j.location||'—'}</td>
+        <td style="padding:10px 12px;text-align:center">${score}</td>
+        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:${statusColor}">${status}</td>
+        <td style="padding:10px 12px;font-size:12px;color:var(--muted)">${appliedAt}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--red)">Error loading jobs</td></tr>';
+  }
+}
+
+function _setToggleUI(enabled) {
+  const btn = document.getElementById('ind-toggle-btn');
+  const lbl = document.getElementById('ind-toggle-label');
+  if (enabled) {
+    btn.className = 'btn btn-sm enabled';
+    lbl.textContent = 'ON';
+  } else {
+    btn.className = 'btn btn-sm disabled';
+    lbl.textContent = 'OFF';
+  }
+}
+
+async function indeedToggle() {
+  try {
+    const r = await fetch('/api/indeed/toggle', { method: 'POST' });
+    const d = await r.json();
+    _setToggleUI(d.enabled);
+    toast(d.enabled ? 'Scheduler enabled' : 'Scheduler disabled');
+  } catch(e) { toast('Error toggling scheduler', 'error'); }
+}
+
+async function indeedSaveSettings() {
+  const body = {
+    indeed_auto_apply_threshold: document.getElementById('ind-threshold').value,
+    indeed_daily_cap:            document.getElementById('ind-daily-cap').value,
+    indeed_schedule_time:        document.getElementById('ind-run-time').value,
+  };
+  try {
+    await fetch('/api/indeed/settings', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    toast('Settings saved');
+    loadIndeedStats();
+  } catch(e) { toast('Error saving settings', 'error'); }
+}
+
+async function indeedApplyOnly() {
+  const btn = document.getElementById('ind-apply-btn');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/indeed/apply', { method: 'POST' });
+    const d = await r.json();
+    if (d.error) { toast(d.error, 'error'); btn.disabled = false; return; }
+    showProgress('Applying to Indeed jobs…', 'Score → Generate → Apply (no crawl)', d.task_id, () => {
+      btn.disabled = false; loadIndeedTab();
+    });
+  } catch(e) { toast('Error', 'error'); btn.disabled = false; }
+}
+
+async function indeedCrawl() {
+  const btn = document.getElementById('ind-crawl-btn');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/indeed/crawl', { method: 'POST' });
+    const d = await r.json();
+    if (d.error) { toast(d.error, 'error'); btn.disabled = false; return; }
+    showProgress('Crawling Indeed…', 'Fetching jobs from Indeed via Apify…', d.task_id, () => {
+      btn.disabled = false; loadIndeedTab();
+    });
+  } catch(e) { toast('Error starting crawl', 'error'); btn.disabled = false; }
+}
+
+async function indeedRunNow() {
+  const btn = document.getElementById('ind-run-btn');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/indeed/run', { method: 'POST' });
+    const d = await r.json();
+    if (d.error) { toast(d.error, 'error'); btn.disabled = false; return; }
+    showProgress('Running Indeed Pipeline…', 'Crawl → Score → Generate → Apply', d.task_id, () => {
+      btn.disabled = false; loadIndeedTab();
+    });
+  } catch(e) { toast('Error starting pipeline', 'error'); btn.disabled = false; }
+}
+
 // ── Boot ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadAll();
@@ -772,10 +1081,14 @@ function rowHtml(j) {
   const hasGen = !!(j.resume_text && j.resume_text.length > 10);
   const genBadge = hasGen ? `<span class="gen-badge">✓ docs</span>` : '';
 
+  const srcMap = { linkedin: ['LI','src-linkedin'], manual: ['M','src-manual'] };
+  const [srcLabel, srcCls] = srcMap[j.source] || ['SK','src-seek'];
+  const srcBadge = `<span class="src-badge ${srcCls}">${srcLabel}</span>`;
+
   const id = j.job_id;
   return `<tr data-id="${id}">
     <td class="c-title">
-      <a class="job-link" href="${j.job_url||'#'}" target="_blank" title="${esc(j.title||'')}">${tr(j.title,38)}</a>${genBadge}
+      <a class="job-link" href="${j.job_url||'#'}" target="_blank" title="${esc(j.title||'')}">${tr(j.title,38)}</a>${srcBadge}${genBadge}
     </td>
     <td class="c-company cell-muted" title="${esc(j.company||'')}">${tr(j.company,22)}</td>
     <td class="c-location cell-muted" title="${esc(j.location||'')}">${tr(j.location,20)}</td>

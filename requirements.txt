@@ -5,3 +5,6 @@ flask
 python-docx
 docxtpl
 docx2pdf
+apscheduler
+playwright
+playwright-stealth
